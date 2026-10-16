@@ -3,7 +3,7 @@
 The team's view of how Wingstop UK & Ireland's own channels are doing, and what people are saying under the posts.
 
 - **Data:** Sprout Social (channel totals and posts), Instagram UK and Ireland (comments) and TikTok (comments), all through Windsor.ai.
-- **Sync:** `/api/sync` runs daily at 05:30 UTC (06:30 London in summer) on Vercel cron, before the 07:47 daily report. Sprout only updates daily, so more often adds little. On a Pro plan you can make it more frequent in `vercel.json`. It writes to Supabase and raises alerts.
+- **Sync:** `/api/sync` runs twice a day on Vercel cron, at 02:45 and 05:30 UTC (03:45 and 06:30 London in summer), so fresh data is in before the 07:47 daily report. Sprout only updates daily, so more often adds little. On a Pro plan you can make it more frequent in `vercel.json`. It writes to Supabase and raises alerts.
 - **Dashboard:** `/` sits behind a team password. You can switch the period (7, 28 or 60 days) and filter everything to one channel. Click a day to see its posts, and click a post to read its comments. Comments are tagged by theme.
 - **Alerts:** an alert fires for:
   - a channel day at more than 2x, or less than 0.4x, its 28-day average

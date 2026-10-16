@@ -3,16 +3,22 @@
 import { useMemo, useState } from 'react';
 import type { DashboardData } from '@/lib/data';
 import { headlines, lastCompleteDay, takeaway, windowFor, type ChannelFilter, type Period } from '@/lib/metrics';
+import { socialToplines } from '@/lib/social';
 import { CHANNELS } from '@/lib/types';
 import AlertsList from './AlertsList';
 import ChannelTable from './ChannelTable';
-import CommentsPanel from './CommentsPanel';
+import CommentsArena from './CommentsArena';
+import CompetitorPanel from './CompetitorPanel';
 import DailyChart from './DailyChart';
+import MentionsPanel from './MentionsPanel';
+import PostWall from './PostWall';
 import PostsTable from './PostsTable';
 import SyncButton from './SyncButton';
-import { compact, day, pct, signedInt, signedPct, signedPts } from './format';
+import Toplines from './Toplines';
+import WeeklyOutput from './WeeklyOutput';
+import { signedPct } from './format';
 
-export default function Dashboard({ data }: { data: DashboardData }) {
+export default function Dashboard({ data, today }: { data: DashboardData; today: string }) {
   const [period, setPeriod] = useState<Period>(28);
   const [channel, setChannel] = useState<ChannelFilter>('All');
   const [pickedDay, setPickedDay] = useState<string | null>(null);
@@ -20,78 +26,80 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   const last = useMemo(() => lastCompleteDay(data.days), [data.days]);
   const win = useMemo(() => (last ? windowFor(last, period) : null), [last, period]);
   const heads = useMemo(() => (win ? headlines(data.days, win, channel) : []), [data.days, win, channel]);
-  const h = (m: string) => heads.find((x) => x.metric === m);
-  const toggleChannel = (c: ChannelFilter) => { setChannel((cur) => (cur === c ? 'All' : c)); };
+  const social = useMemo(() => socialToplines(data.accountDays, data.media, period, channel), [data.accountDays, data.media, period, channel]);
+  const toggleChannel = (c: ChannelFilter) => setChannel((cur) => (cur === c ? 'All' : c));
 
   if (!last || !win) {
     return (
-      <main className="wrap">
-        <h1>Wingstop UK Social</h1>
-        <p className="empty">No data yet. Press Sync now to pull the last 120 days from Windsor. It takes up to a minute.</p>
-        <SyncButton />
+      <main className="shell">
+        <header className="hero"><div className="inner"><span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span><h1>Social pulse</h1>
+          <p className="take">No data yet. Press Sync now to pull the last 120 days from Windsor. It takes up to a minute.</p><SyncButton /></div></header>
       </main>
     );
   }
 
-  const imp = h('impressions'), eng = h('engagements'), rate = h('engagement_rate'), fol = h('follower_growth');
-  const word = (v: number | null | undefined) => (v == null ? 'flat' : `${v < 0 ? 'down' : 'up'} ${signedPct(v).slice(1)}`);
+  const st = (m: string) => social?.toplines.find((t) => t.metric === m)?.change;
+  const word = (v: number | null | undefined) => (v == null ? 'new' : `${v < 0 ? 'down' : 'up'} ${signedPct(v).slice(1)}`);
   const cls = (v: number | null | undefined) => (v == null ? '' : v >= 0 ? 'up' : 'down');
+  const postsFrom = social?.from ?? win.curFrom;
 
   return (
-    <main className="wrap">
-      <header>
-        <h1>Wingstop UK Social</h1>
-        <p className="take">
-          {takeaway(heads)} Impressions <b className={cls(imp?.change)}>{word(imp?.change)}</b>, engagements{' '}
-          <b className={cls(eng?.change)}>{word(eng?.change)}</b> against the {period} days before.
-        </p>
-        <p className="cap">
-          {channel === 'All' ? 'All channels' : channel}, {day(win.curFrom)} to {day(win.curTo)}. From Sprout Social, Instagram and TikTok through Windsor.ai.
-          {data.lastSync && <> Last sync {new Date(data.lastSync.finished_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' })} ({data.lastSync.status}).</>}
-        </p>
-        <div className="toolbar">
-          <div className="seg" role="group" aria-label="Period">
-            {([7, 28, 60] as Period[]).map((p) => (
-              <button key={p} type="button" aria-pressed={period === p} onClick={() => { setPeriod(p); setPickedDay(null); }}>{p} days</button>
-            ))}
-          </div>
-          <SyncButton />
-          <div className="seg" role="group" aria-label="Channel">
-            {(['All', ...CHANNELS] as ChannelFilter[]).map((c) => (
-              <button key={c} type="button" aria-pressed={channel === c} onClick={() => setChannel(c)}>{c}</button>
-            ))}
-          </div>
+    <main className="shell">
+      <header className="hero">
+        <div className="inner">
+          <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
+          <h1>Social pulse</h1>
+          <p className="take">
+            {social ? (
+              <>Shares <b className={cls(st('shares'))}>{word(st('shares'))}</b>, saves <b className={cls(st('saves'))}>{word(st('saves'))}</b>, reposts <b className={cls(st('reposts'))}>{word(st('reposts'))}</b> on the {period} days before. </>
+            ) : null}
+            {takeaway(heads)}
+          </p>
+          {data.lastSync && (
+            <p className="cap" style={{ color: 'rgba(255,255,255,.75)' }}>
+              Last sync {new Date(data.lastSync.finished_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' })} · Sprout, Instagram and TikTok via Windsor.ai
+            </p>
+          )}
         </div>
       </header>
 
-      {data.alerts.length > 0 && <AlertsList alerts={data.alerts} />}
+      <nav className="filters" aria-label="Filters">
+        <div className="inner">
+          <div className="seg" role="group" aria-label="Period">
+            {([7, 28, 60] as Period[]).map((p) => <button key={p} type="button" aria-pressed={period === p} onClick={() => { setPeriod(p); setPickedDay(null); }}>{p} days</button>)}
+          </div>
+          <div className="seg" role="group" aria-label="Channel">
+            {(['All', ...CHANNELS] as ChannelFilter[]).map((c) => <button key={c} type="button" aria-pressed={channel === c} onClick={() => setChannel(c)}>{c}</button>)}
+          </div>
+          <span style={{ marginLeft: 'auto' }}><SyncButton /></span>
+        </div>
+      </nav>
 
-      <section className="tiles" aria-label="Headline figures">
-        <Tile label="Impressions" value={compact(imp?.current)} delta={`${signedPct(imp?.change)} vs ${compact(imp?.previous)}`} good={imp?.change} />
-        <Tile label="Engagements" value={compact(eng?.current)} delta={`${signedPct(eng?.change)} vs ${compact(eng?.previous)}`} good={eng?.change} />
-        <Tile label="Engagement rate" value={pct(rate?.current, 2)} delta={`${signedPts(rate?.change)} vs ${pct(rate?.previous, 2)}`} good={rate?.change} />
-        <Tile
-          label="Net new followers"
-          value={signedInt(fol?.current)}
-          delta={fol?.previous == null || fol?.current == null ? 'No earlier figure to compare' : `${signedInt(fol.current - fol.previous)} vs ${signedInt(fol.previous)} before`}
-          good={fol?.previous == null || fol?.current == null ? null : fol.current - fol.previous}
-        />
+      {data.alerts.length > 0 && <section className="band" style={{ paddingTop: 18, paddingBottom: 18 }}><div className="inner"><AlertsList alerts={data.alerts} /></div></section>}
+
+      <Toplines social={social?.toplines ?? null} from={social?.from ?? null} to={social?.to ?? null} period={period} heads={heads}
+        scopeNote={channel === 'All' ? null : channel === 'Instagram' || channel === 'TikTok' ? `${channel} only.` : `${channel} has no shares, saves or reposts feed; the bottom row covers it.`} />
+      <PostWall media={data.media} comments={data.comments} from={postsFrom} channel={channel} />
+      <CommentsArena comments={data.comments} posts={data.posts} media={data.media} channel={channel} />
+      <MentionsPanel mentions={data.mentions} />
+      <CompetitorPanel items={data.competitors} />
+      <WeeklyOutput posts={data.posts} today={today} />
+
+      <section className="band" id="numbers">
+        <div className="inner">
+          <div className="band-head"><div><span className="eyebrow">Sprout Social · all channels</span><h2>The numbers underneath</h2></div></div>
+          <DailyChart days={data.days} posts={data.posts} win={win} period={period} channel={channel} pickedDay={pickedDay} onPickDay={setPickedDay} onPickChannel={toggleChannel} />
+          <ChannelTable days={data.days} win={win} period={period} channel={channel} onPick={toggleChannel} />
+          <details className="card">
+            <summary><h3 style={{ display: 'inline' }}>Every post, every channel</h3> <span className="muted" style={{ fontSize: '.85rem' }}>· tap to open, includes Facebook, LinkedIn and stories</span></summary>
+            <PostsTable posts={data.posts} comments={data.comments} from={win.curFrom} channel={channel} pickedDay={pickedDay} onClearDay={() => setPickedDay(null)} />
+          </details>
+        </div>
       </section>
 
-      <DailyChart days={data.days} posts={data.posts} win={win} period={period} channel={channel} pickedDay={pickedDay} onPickDay={setPickedDay} onPickChannel={toggleChannel} />
-      <ChannelTable days={data.days} win={win} period={period} channel={channel} onPick={toggleChannel} />
-      <PostsTable posts={data.posts} comments={data.comments} from={win.curFrom} channel={channel} pickedDay={pickedDay} onClearDay={() => setPickedDay(null)} />
-      <CommentsPanel comments={data.comments} posts={data.posts} channel={channel} />
+      <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
+        <div className="inner"><p className="cap">Wingstop UK&amp;I internal. Data from Sprout Social, Instagram and TikTok through Windsor.ai, synced daily at 06:30. Mentions and competitor moves come from the morning briefs.</p></div>
+      </footer>
     </main>
-  );
-}
-
-function Tile({ label, value, delta, good }: { label: string; value: string; delta: string; good: number | null | undefined }) {
-  return (
-    <div className="card">
-      <div className="label">{label}</div>
-      <div className="big">{value}</div>
-      <div className={`delta ${good == null ? '' : good >= 0 ? 'up' : 'down'}`}>{delta}</div>
-    </div>
   );
 }

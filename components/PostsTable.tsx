@@ -79,10 +79,10 @@ export default function PostsTable({ posts, comments, from, channel, pickedDay, 
                       <td>{p.channel}</td>
                       <td className="hide-sm">{p.format}</td>
                       <td><div className={`clamp ${p.text ? '' : 'muted'}`}>{p.text || 'No caption'}</div></td>
-                      <td className="num" style={{ whiteSpace: 'nowrap' }}><span className="bar" style={{ width: Math.max(2, ((p.views ?? 0) / maxViews) * 64) }} />{int(p.views)}</td>
-                      <td className="num">{int(p.engagements)}</td>
-                      <td className={`num ${boosted ? 'down' : ''}`} title={boosted ? 'Very low for this many views: likely boosted' : undefined}>{pct(p.engagement_rate)}</td>
-                      <td className="num">{int(p.comments)}</td>
+                      <td className="r" style={{ whiteSpace: 'nowrap' }}><span className="bar" style={{ width: Math.max(2, ((p.views ?? 0) / maxViews) * 64) }} />{int(p.views)}</td>
+                      <td className="r">{int(p.engagements)}</td>
+                      <td className={`r ${boosted ? 'down' : ''}`} title={boosted ? 'Very low for this many views: likely boosted' : undefined}>{pct(p.engagement_rate)}</td>
+                      <td className="r">{int(p.comments)}</td>
                     </tr>
                     {isOpen && (
                       <tr className="detail"><td colSpan={8}>

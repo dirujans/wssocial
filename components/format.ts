@@ -16,4 +16,4 @@ export const ago = (iso: string | null | undefined) => {
   return h < 1 ? 'just now' : h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
 };
 export const safeHref = (u: string | null | undefined) => (u && /^https:\/\//.test(u) ? u : undefined);
-export const CHANNEL_COLOUR: Record<string, string> = { TikTok: 'var(--s1)', Instagram: 'var(--s2)', Facebook: 'var(--s3)', LinkedIn: 'var(--s4)', X: 'var(--s5)' };
+export const CHANNEL_COLOUR: Record<string, string> = { TikTok: 'var(--s1)', Instagram: 'var(--s2)', 'Instagram IE': 'var(--citrus)', Facebook: 'var(--s3)', LinkedIn: 'var(--s4)', X: 'var(--s5)' };

@@ -4,7 +4,7 @@
 
 import { fetchWithRetry } from './http';
 import { themeOf } from './themes';
-import { NETWORK_TO_CHANNEL, type Comment, type Post, type ProfileDay } from './types';
+import { NETWORK_TO_CHANNEL, type AccountDay, type Comment, type Media, type Post, type ProfileDay } from './types';
 
 const BASE = 'https://connectors.windsor.ai';
 
@@ -64,7 +64,7 @@ export async function fetchProfileDays(datePreset = 'last_120d'): Promise<Profil
 export async function fetchPosts(datePreset = 'last_60d'): Promise<Post[]> {
   const rows = await windsor(
     'sproutsocial',
-    ['post_guid', 'post_created_time', 'post_network', 'post_type', 'post_text', 'post_permalink', 'post_impressions', 'post_video_views', 'post_likes', 'post_comments', 'post_shares', 'post_saves'],
+    ['post_guid', 'post_created_time', 'post_network', 'post_type', 'post_text', 'post_permalink', 'post_impressions', 'post_reach', 'post_video_views', 'post_likes', 'post_comments', 'post_shares', 'post_saves'],
     { datePreset, accounts: [ACCOUNTS.sprout] },
   );
   const out = new Map<string, Post>();
@@ -85,6 +85,7 @@ export async function fetchPosts(datePreset = 'last_60d'): Promise<Post[]> {
       text: str(r.post_text),
       link: str(r.post_permalink),
       impressions: imp,
+      reach: num(r.post_reach),
       views: vv != null && vv > 0 ? vv : imp,
       likes, comments, shares, saves, engagements,
       engagement_rate: imp ? engagements / imp : null,
@@ -134,4 +135,99 @@ export async function fetchComments(datePreset = 'last_14d'): Promise<Comment[]>
       theme: themeOf(str(c.comment_text)),
     }));
   return [...igRows, ...ttRows];
+}
+
+const igPlatform = (accountId: unknown): Media['platform'] => (str(accountId) === ACCOUNTS.instagramIE ? 'Instagram IE' : 'Instagram');
+
+function igKind(type: unknown, product: unknown): Media['kind'] {
+  const t = str(type), p = str(product);
+  if (t === 'REELS' || p === 'REELS') return 'Reel';
+  if (t === 'CAROUSEL_ALBUM') return 'Carousel';
+  if (t === 'VIDEO') return 'Video';
+  return 'Image';
+}
+
+/** Instagram feed posts and reels, and TikTok videos, with media and per-post saves, shares, reposts. */
+export async function fetchMedia(datePreset = 'last_120d'): Promise<Media[]> {
+  const [ig, tt] = await Promise.all([
+    windsor(
+      'instagram',
+      ['account_id', 'media_id', 'timestamp', 'media_type', 'media_product_type', 'media_permalink', 'media_url', 'media_thumbnail_url', 'media_caption', 'media_views', 'media_reach', 'media_shares', 'media_saved', 'media_reposts', 'media_total_like_count', 'media_total_comments_count'],
+      { datePreset, accounts: [ACCOUNTS.instagramUK, ACCOUNTS.instagramIE] },
+    ),
+    windsor(
+      'tiktok_organic',
+      ['video_id', 'video_create_datetime', 'video_caption', 'video_thumbnail_url', 'video_embed_url', 'video_share_url', 'video_views_count', 'video_reach', 'video_likes', 'video_comments', 'video_shares', 'video_favorites', 'video_full_watched_rate', 'video_average_time_watched', 'video_new_followers'],
+      { datePreset },
+    ),
+  ]);
+  const out = new Map<string, Media>();
+  for (const m of ig) {
+    if (!m.media_id) continue;
+    const kind = igKind(m.media_type, m.media_product_type);
+    const isVideo = kind === 'Reel' || kind === 'Video';
+    const ts = str(m.timestamp).replace(/\+0000$/, 'Z');
+    out.set(`ig_${str(m.media_id)}`, {
+      id: `ig_${str(m.media_id)}`, platform: igPlatform(m.account_id), posted_at: ts, posted: ts.slice(0, 10), kind,
+      caption: str(m.media_caption), permalink: m.media_permalink ? str(m.media_permalink) : null,
+      media_url: m.media_url ? str(m.media_url) : null,
+      thumb_url: isVideo ? (m.media_thumbnail_url ? str(m.media_thumbnail_url) : null) : (m.media_url ? str(m.media_url) : null),
+      embed_url: null,
+      views: num(m.media_views), reach: num(m.media_reach), likes: num(m.media_total_like_count), comments: num(m.media_total_comments_count),
+      shares: num(m.media_shares), saves: num(m.media_saved), reposts: num(m.media_reposts),
+      full_watch_rate: null, avg_watch_s: null, new_followers: null,
+      comment_key: normLink(m.media_permalink),
+    });
+  }
+  for (const v of tt) {
+    if (!v.video_id) continue;
+    const ts = str(v.video_create_datetime);
+    const iso = ts && !/[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? ts + 'Z' : ts;
+    out.set(`tt_${str(v.video_id)}`, {
+      id: `tt_${str(v.video_id)}`, platform: 'TikTok', posted_at: iso, posted: iso.slice(0, 10),
+      kind: /photomode/.test(str(v.video_thumbnail_url)) ? 'Photo' : 'Video',
+      caption: str(v.video_caption), permalink: v.video_share_url ? str(v.video_share_url).replace(/\?.*$/, '') : null,
+      media_url: null, thumb_url: v.video_thumbnail_url ? str(v.video_thumbnail_url) : null,
+      embed_url: v.video_embed_url ? str(v.video_embed_url) : `https://www.tiktok.com/player/v1/${str(v.video_id)}`,
+      views: num(v.video_views_count), reach: num(v.video_reach), likes: num(v.video_likes), comments: num(v.video_comments),
+      shares: num(v.video_shares), saves: num(v.video_favorites), reposts: null,
+      full_watch_rate: num(v.video_full_watched_rate), avg_watch_s: num(v.video_average_time_watched), new_followers: num(v.video_new_followers),
+      comment_key: str(v.video_id),
+    });
+  }
+  return [...out.values()];
+}
+
+/**
+ * Daily account totals: Instagram UK and IE, and TikTok.
+ * Platform limits: Instagram follower counts cover the last 30 days only; TikTok account data the last 60 days.
+ * Follows are returned as separate rows so a later sync never blanks out follows already stored.
+ */
+export async function fetchAccountDays(): Promise<{ metrics: Omit<AccountDay, 'follows'>[]; follows: Pick<AccountDay, 'date' | 'platform' | 'follows'>[] }> {
+  const igAccounts = [ACCOUNTS.instagramUK, ACCOUNTS.instagramIE];
+  const [ig, igFollows, tt] = await Promise.all([
+    windsor('instagram', ['account_id', 'date', 'views', 'reach', 'likes', 'comments', 'shares', 'saves', 'reposts', 'total_interactions'], { datePreset: 'last_120d', accounts: igAccounts }),
+    windsor('instagram', ['account_id', 'date', 'follower_count'], { datePreset: 'last_30d', accounts: igAccounts }),
+    windsor('tiktok_organic', ['date', 'video_views', 'likes', 'comments', 'shares', 'profile_views', 'followers_count'], { datePreset: 'last_60d' }),
+  ]);
+  const metrics: Omit<AccountDay, 'follows'>[] = [
+    ...ig.filter((r) => r.date).map((r) => ({
+      date: str(r.date), platform: igPlatform(r.account_id),
+      views: num(r.views), reach: num(r.reach), likes: num(r.likes), comments: num(r.comments), shares: num(r.shares),
+      saves: num(r.saves), reposts: num(r.reposts), interactions: num(r.total_interactions), profile_views: null,
+    })),
+    // Zero rows are days TikTok has not filled in yet.
+    ...tt.filter((r) => r.date && (num(r.video_views) ?? 0) > 0).map((r) => ({
+      date: str(r.date), platform: 'TikTok' as const,
+      views: num(r.video_views), reach: null, likes: num(r.likes), comments: num(r.comments), shares: num(r.shares),
+      saves: null, reposts: null, interactions: null, profile_views: num(r.profile_views),
+    })),
+  ];
+  // Today's follower count reads 0 until the platform fills it, so skip zeros on the latest two days.
+  const recent = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);
+  const follows: Pick<AccountDay, 'date' | 'platform' | 'follows'>[] = [
+    ...igFollows.filter((r) => r.date && !(str(r.date) >= recent && !num(r.follower_count))).map((r) => ({ date: str(r.date), platform: igPlatform(r.account_id), follows: num(r.follower_count) })),
+    ...tt.filter((r) => r.date && (num(r.video_views) ?? 0) > 0).map((r) => ({ date: str(r.date), platform: 'TikTok' as const, follows: num(r.followers_count) })),
+  ];
+  return { metrics, follows };
 }

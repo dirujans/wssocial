@@ -17,7 +17,7 @@ export default async function Page() {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[dashboard] load failed:', message);
     return (
-      <main className="wrap">
+      <main className="shell"><div className="band"><div className="inner">
         <h1>Wingstop UK Social</h1>
         <div className="alert" data-sev="critical">
           <div>
@@ -26,8 +26,9 @@ export default async function Page() {
             <p>Usually a missing or wrong setting in Vercel (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY), or the database tables not being set up yet.</p>
           </div>
         </div>
-      </main>
+      </div></div></main>
     );
   }
-  return <Dashboard data={data} />;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' }); // YYYY-MM-DD, London
+  return <Dashboard data={data} today={today} />;
 }

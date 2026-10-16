@@ -1,15 +1,17 @@
-import type { Metadata } from 'next';
-import { Instrument_Sans, Instrument_Serif } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { Archivo } from 'next/font/google';
 import './globals.css';
 
-const sans = Instrument_Sans({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
-const serif = Instrument_Serif({ subsets: ['latin'], weight: '400', variable: '--font-serif', display: 'swap' });
+// Stand-in for Roc Grotesk (the brand face) until the font files are added to /public/fonts.
+// Archivo's width axis gets close to Roc Grotesk Compressed and Condensed.
+const archivo = Archivo({ subsets: ['latin'], axes: ['wdth'], style: ['normal', 'italic'], variable: '--font-brand', display: 'swap' });
 
-export const metadata: Metadata = { title: 'Wingstop UK Social', robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: 'Wingstop UK&I Social Pulse', robots: { index: false, follow: false } };
+export const viewport: Viewport = { themeColor: '#000000', colorScheme: 'dark' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-GB" className={`${sans.variable} ${serif.variable}`}>
+    <html lang="en-GB" className={archivo.variable}>
       <body>{children}</body>
     </html>
   );

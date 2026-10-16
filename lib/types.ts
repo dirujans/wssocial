@@ -41,6 +41,7 @@ export interface Post {
   saves: number;
   engagements: number;
   engagement_rate: number | null;
+  reach?: number | null;
   comment_key: string; // matches Comment.post_key
 }
 
@@ -69,4 +70,56 @@ export interface Alert {
   detail: string;
   link: string | null;
   created_at?: string;
+}
+
+/** One Instagram or TikTok post from the native connectors (media, saves, reposts, watch-through). */
+export interface Media {
+  id: string;
+  platform: 'Instagram' | 'Instagram IE' | 'TikTok';
+  posted_at: string;
+  posted: string;
+  kind: 'Reel' | 'Carousel' | 'Image' | 'Video' | 'Photo';
+  caption: string;
+  permalink: string | null;
+  media_url: string | null;
+  thumb_url: string | null;
+  embed_url: string | null;
+  views: number | null;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  reposts: number | null;
+  full_watch_rate: number | null;
+  avg_watch_s: number | null;
+  new_followers: number | null;
+  comment_key: string;
+}
+
+/** Daily account totals from the native connectors. */
+export interface AccountDay {
+  date: string;
+  platform: 'Instagram' | 'Instagram IE' | 'TikTok';
+  views: number | null;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  reposts: number | null;
+  interactions: number | null;
+  profile_views: number | null;
+  follows: number | null;
+}
+
+export interface CompetitorItem {
+  id: string; brand: string; kind: string | null; platform: string | null; title: string; summary: string | null;
+  metric: string | null; spike: boolean | null; posted_on: string | null; url: string | null; so_what: string | null; found_at: string;
+}
+
+export interface Mention {
+  id: string; source: string | null; author: string | null; title: string; summary: string | null; kind: string | null;
+  action: string | null; priority: string | null; metric: string | null; posted_on: string | null; url: string | null;
+  why: string | null; done: boolean; found_at: string;
 }
