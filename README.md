@@ -29,7 +29,7 @@ Mentions and tags by other accounts are not available through Windsor. The daily
    curl -H "Authorization: Bearer $CRON_SECRET" https://<your-app>.vercel.app/api/sync
    ```
    A good result looks like `{"status":"ok","profile_days":~590,"posts":~360,"comments":~590}`.
-5. Open the app. Any username works; the password is `DASHBOARD_PASSWORD`.
+5. Open the app and sign in with `DASHBOARD_PASSWORD`. The sign-in lasts 30 days on that device.
 
 ## Notes
 

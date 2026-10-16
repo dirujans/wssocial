@@ -9,6 +9,7 @@ import ChannelTable from './ChannelTable';
 import CommentsPanel from './CommentsPanel';
 import DailyChart from './DailyChart';
 import PostsTable from './PostsTable';
+import SyncButton from './SyncButton';
 import { compact, day, pct, signedInt, signedPct, signedPts } from './format';
 
 export default function Dashboard({ data }: { data: DashboardData }) {
@@ -26,7 +27,8 @@ export default function Dashboard({ data }: { data: DashboardData }) {
     return (
       <main className="wrap">
         <h1>Wingstop UK Social</h1>
-        <p className="empty">No data yet. Run the sync once (see the README) and refresh.</p>
+        <p className="empty">No data yet. Press Sync now to pull the last 120 days from Windsor. It takes up to a minute.</p>
+        <SyncButton />
       </main>
     );
   }
@@ -53,6 +55,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
               <button key={p} type="button" aria-pressed={period === p} onClick={() => { setPeriod(p); setPickedDay(null); }}>{p} days</button>
             ))}
           </div>
+          <SyncButton />
           <div className="seg" role="group" aria-label="Channel">
             {(['All', ...CHANNELS] as ChannelFilter[]).map((c) => (
               <button key={c} type="button" aria-pressed={channel === c} onClick={() => setChannel(c)}>{c}</button>
