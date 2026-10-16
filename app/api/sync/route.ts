@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { fetchComments, fetchPosts, fetchProfileDays } from '@/lib/windsor';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+export const maxDuration = 60; // Hobby-safe; a full sync takes well under this
 
 export async function GET(req: Request) {
   if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
