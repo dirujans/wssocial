@@ -70,6 +70,7 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
             <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
               <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience</Link>
+              <Link href="/nso" className="chip" style={{ textDecoration: 'none' }}>NSO</Link>
             </span>
           </div>
           <h1>Competitor watch</h1>

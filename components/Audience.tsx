@@ -88,6 +88,7 @@ export default function Audience({ data, today, now }: { data: AudienceData; tod
             <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
               <Link href="/competitors" className="chip" style={{ textDecoration: 'none' }}>Competitor watch</Link>
+              <Link href="/nso" className="chip" style={{ textDecoration: 'none' }}>NSO</Link>
             </span>
           </div>
           <h1>Our audience</h1>

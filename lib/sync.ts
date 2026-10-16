@@ -53,6 +53,12 @@ export async function runSync(): Promise<SyncResult> {
   if (audR.status === 'fulfilled') {
     const { error } = await db.from('audience_demo').upsert(audR.value, { onConflict: 'platform,dimension,key' });
     if (error) errors.push(`audience_demo: ${error.message}`); else detail.audience_rows = audR.value.length;
+    // Daily city snapshot: the history behind NSO city lift (Instagram only gives today's split).
+    const cities = audR.value.filter((r) => r.dimension === 'city').map((r) => ({ date: r.snapshot_date, platform: r.platform, city: r.key, followers: r.value, unit: r.unit }));
+    if (cities.length) {
+      const { error: cerr } = await db.from('audience_city_daily').upsert(cities, { onConflict: 'date,platform,city' });
+      if (cerr) errors.push(`audience_city_daily: ${cerr.message}`);
+    }
   } else errors.push(`Windsor audience: ${why(audR)}`);
 
   if (commentsR.status === 'fulfilled') {

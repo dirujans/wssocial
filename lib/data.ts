@@ -1,7 +1,7 @@
 import 'server-only';
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
-import type { AccountDay, Alert, AudienceDemo, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
+import type { AccountDay, Alert, AudienceDemo, CityDay, NsoCreator, NsoOpening, NsoPage, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
 
 export interface DashboardData {
   days: ProfileDay[];
@@ -94,5 +94,31 @@ export async function loadAudience(): Promise<AudienceData> {
     comments: (c.data ?? []) as Comment[],
     mentions: (m.data ?? []) as Mention[],
     lastSync: (s.data?.[0] as AudienceData['lastSync']) ?? null,
+  };
+}
+
+export interface NsoData {
+  openings: NsoOpening[];
+  creators: NsoCreator[];
+  pages: NsoPage[];
+  cityDays: CityDay[];
+  demo: AudienceDemo[];
+  mentions: Mention[];
+}
+
+export async function loadNso(): Promise<NsoData> {
+  const db = supabaseAdmin();
+  const [o, c, p, cd, d, m] = await Promise.all([
+    db.from('nso_openings').select('*').order('opens_on', { ascending: false, nullsFirst: true }),
+    db.from('nso_creators').select('*').order('followers', { ascending: false, nullsFirst: false }),
+    db.from('nso_pages').select('*').order('followers', { ascending: false, nullsFirst: false }),
+    db.from('audience_city_daily').select('*').order('date'),
+    db.from('audience_demo').select('*').eq('dimension', 'city'),
+    db.from('mentions').select('*').gte('posted_on', shiftDay(today(), -180)).order('posted_on', { ascending: false }).limit(500),
+  ]);
+  for (const r of [o, c, p, cd, d, m]) if (r.error) throw new Error(r.error.message);
+  return {
+    openings: (o.data ?? []) as NsoOpening[], creators: (c.data ?? []) as NsoCreator[], pages: (p.data ?? []) as NsoPage[],
+    cityDays: (cd.data ?? []) as CityDay[], demo: (d.data ?? []) as AudienceDemo[], mentions: (m.data ?? []) as Mention[],
   };
 }

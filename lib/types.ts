@@ -135,3 +135,13 @@ export interface CompetitorAccountDay {
 }
 
 export interface AudienceDemo { platform: string; dimension: string; key: string; value: number | null; unit: string | null; snapshot_date: string }
+
+export interface NsoOpening { id: string; store: string; city: string; city_match: string | null; region: string | null; address: string | null; opens_on: string | null; status: string; notes: string | null; source_url: string | null }
+export interface NsoCreator {
+  id: string; opening_id: string; handle: string; name: string | null; platform: string; followers: number | null; followers_note: string | null;
+  engagement_rate: number | null; age1824: number | null; age2534: number | null; female_pct: number | null; location_pct: number | null; fake_score: number | null;
+  categories: string[] | null; email: string | null; competitor_history: boolean | null; why: string | null; source: string | null; source_url: string | null;
+  shortlisted: boolean; notes: string | null;
+}
+export interface NsoPage { id: string; city: string; name: string; platform: string | null; handle: string | null; url: string | null; type: string | null; followers: number | null; followers_note: string | null; source_url: string | null; saved: boolean }
+export interface CityDay { date: string; platform: string; city: string; followers: number | null; unit: string | null }
