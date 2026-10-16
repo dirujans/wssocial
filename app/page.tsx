@@ -9,6 +9,25 @@ export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   if (!isSignedIn()) redirect('/login');
-  const data = await loadDashboard();
+  let data;
+  try {
+    data = await loadDashboard();
+  } catch (err) {
+    // Shown only to signed-in team members, so the real cause is visible instead of a digest.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[dashboard] load failed:', message);
+    return (
+      <main className="wrap">
+        <h1>Wingstop UK Social</h1>
+        <div className="alert" data-sev="critical">
+          <div>
+            <strong>The dashboard couldn&apos;t load its data</strong>
+            <p>{message}</p>
+            <p>Usually a missing or wrong setting in Vercel (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY), or the database tables not being set up yet.</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
   return <Dashboard data={data} />;
 }

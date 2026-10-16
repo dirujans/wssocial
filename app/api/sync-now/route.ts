@@ -7,6 +7,10 @@ export const maxDuration = 60;
 
 export async function POST() {
   if (!isSignedIn()) return Response.json({ status: 'error', errors: ['Sign in first'] }, { status: 401 });
-  const r = await runSync();
-  return Response.json(r, { status: r.status === 'error' ? 500 : 200 });
+  try {
+    const r = await runSync();
+    return Response.json(r, { status: r.status === 'error' ? 500 : 200 });
+  } catch (err) {
+    return Response.json({ status: 'error', errors: [err instanceof Error ? err.message : String(err)] }, { status: 500 });
+  }
 }
