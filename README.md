@@ -12,11 +12,13 @@ The team's view of how Wingstop UK & Ireland's own channels are doing, and what 
 
   Each event alerts once (stable ids), and alerts can be dismissed.
 
+- **Competitor watch (`/competitors`):** competitors' public Instagram posts through Windsor's Instagram Public connector, scored against each account's own median post (2.5x or more = breakout). It also shows a scoreboard (followers, weekly output, engagement per 1k followers), a Raising Cane's tracker, and moves and buzz from the daily briefs. To add or remove a competitor, change the handles in Windsor; no code change is needed. Display names live in `lib/competitors.ts`.
+
 Mentions and tags by other accounts are not available through Windsor. The daily social report (a Claude scheduled task) covers them by web search.
 
 ## Set up (about 15 minutes)
 
-1. **Supabase:** create a project, open SQL Editor and run `supabase/migrations/0001_init.sql`.
+1. **Supabase:** create a project, open SQL Editor and run the files in `supabase/migrations/` in order.
 2. **Windsor:** copy the API key from https://onboard.windsor.ai/app/data-preview.
 3. **Vercel:** import this repo, then add the variables from `.env.example` under Settings > Environment Variables:
    - `WINDSOR_API_KEY`

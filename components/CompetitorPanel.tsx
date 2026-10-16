@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { CompetitorItem } from '@/lib/types';
 import { day, safeHref } from './format';
 
@@ -24,6 +25,7 @@ export default function CompetitorPanel({ items }: { items: CompetitorItem[] }) 
             {brands.map((b) => <button key={b} type="button" aria-pressed={brand === b} onClick={() => setBrand(b)}>{b}</button>)}
           </div>
         </div>
+        <Link href="/competitors" className="chip primary" style={{ alignSelf: 'flex-start', textDecoration: 'none' }}>Open the full competitor page: their posts, breakouts, Raising Cane&apos;s →</Link>
         <p className="note">From the daily competitor brief, which searches trade press, news and public social. Engagement figures appear only where a source states them.</p>
         {rows.length === 0 ? <p className="empty">Nothing logged yet. The morning competitor brief adds to this.</p> : (
           <div className="feed">

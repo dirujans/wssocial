@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { DashboardData } from '@/lib/data';
 import { headlines, lastCompleteDay, takeaway, windowFor, type ChannelFilter, type Period } from '@/lib/metrics';
 import { socialToplines } from '@/lib/social';
@@ -47,7 +48,10 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
     <main className="shell">
       <header className="hero">
         <div className="inner">
-          <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
+          <div className="row" style={{ alignItems: 'center' }}>
+            <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
+            <Link href="/competitors" className="chip" style={{ textDecoration: 'none' }}>Competitor watch →</Link>
+          </div>
           <h1>Social pulse</h1>
           <p className="take">
             {social ? (

@@ -1,7 +1,7 @@
 import 'server-only';
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
-import type { AccountDay, Alert, Comment, CompetitorItem, Media, Mention, Post, ProfileDay } from './types';
+import type { AccountDay, Alert, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
 
 export interface DashboardData {
   days: ProfileDay[];
@@ -41,5 +41,30 @@ export async function loadDashboard(): Promise<DashboardData> {
     competitors: (co.data ?? []) as CompetitorItem[],
     mentions: (me.data ?? []) as Mention[],
     lastSync: (s.data?.[0] as DashboardData['lastSync']) ?? null,
+  };
+}
+
+export interface CompetitorData {
+  posts: CompetitorPost[];
+  accounts: CompetitorAccountDay[];
+  items: CompetitorItem[];
+  lastSync: { status: string; finished_at: string } | null;
+}
+
+/** The competitor page: public Instagram posts (60 days), follower snapshots, and the briefs' moves and buzz (120 days). */
+export async function loadCompetitors(): Promise<CompetitorData> {
+  const db = supabaseAdmin();
+  const [p, a, i, s] = await Promise.all([
+    db.from('competitor_posts').select('*').gte('posted', shiftDay(today(), -60)).order('posted_at', { ascending: false }).limit(2000),
+    db.from('competitor_accounts_daily').select('*').gte('date', shiftDay(today(), -90)).order('date'),
+    db.from('competitor_items').select('*').or(`posted_on.gte.${shiftDay(today(), -120)},brand.ilike.%cane%`).order('posted_on', { ascending: false }).limit(200),
+    db.from('sync_log').select('status,finished_at').order('started_at', { ascending: false }).limit(1),
+  ]);
+  for (const r of [p, a, i, s]) if (r.error) throw new Error(r.error.message);
+  return {
+    posts: (p.data ?? []) as CompetitorPost[],
+    accounts: (a.data ?? []) as CompetitorAccountDay[],
+    items: (i.data ?? []) as CompetitorItem[],
+    lastSync: (s.data?.[0] as CompetitorData['lastSync']) ?? null,
   };
 }

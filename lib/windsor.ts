@@ -4,7 +4,8 @@
 
 import { fetchWithRetry } from './http';
 import { themeOf } from './themes';
-import { NETWORK_TO_CHANNEL, type AccountDay, type Comment, type Media, type Post, type ProfileDay } from './types';
+import { brandOf, scorePosts } from './competitors';
+import { NETWORK_TO_CHANNEL, type AccountDay, type Comment, type CompetitorAccountDay, type CompetitorPost, type Media, type Post, type ProfileDay } from './types';
 
 const BASE = 'https://connectors.windsor.ai';
 
@@ -230,4 +231,42 @@ export async function fetchAccountDays(): Promise<{ metrics: Omit<AccountDay, 'f
     ...tt.filter((r) => r.date && (num(r.video_views) ?? 0) > 0).map((r) => ({ date: str(r.date), platform: 'TikTok' as const, follows: num(r.followers_count) })),
   ];
   return { metrics, follows };
+}
+
+/**
+ * Competitors' public Instagram (Windsor instagram_public, business discovery). Every handle added in Windsor comes back,
+ * so new competitors need no code change. Includes @wingstopuk as our own benchmark.
+ * Returns posts scored against each account's own median, plus today's follower snapshot per handle.
+ */
+export async function fetchCompetitorSocial(datePreset = 'last_60d'): Promise<{ posts: CompetitorPost[]; accounts: CompetitorAccountDay[] }> {
+  const rows = await windsor(
+    'instagram_public',
+    ['account_name', 'profile_followers_count', 'profile_media_count', 'media_id', 'media_timestamp', 'media_type', 'media_product_type', 'media_like_count', 'media_comments_count', 'media_permalink', 'media_thumbnail_url', 'media_url', 'media_caption'],
+    { datePreset },
+  );
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+  const followers: Record<string, number | null> = {};
+  const accounts = new Map<string, CompetitorAccountDay>();
+  const posts = new Map<string, Omit<CompetitorPost, 'multiple' | 'per_1k' | 'viral'>>();
+  for (const r of rows) {
+    const handle = str(r.account_name).toLowerCase();
+    if (!handle) continue;
+    const brand = brandOf(handle).brand;
+    const f = num(r.profile_followers_count);
+    if (f != null) followers[handle] = f;
+    if (!accounts.has(handle)) accounts.set(handle, { date: today, handle, platform: 'Instagram', brand, followers: f, media_count: num(r.profile_media_count) });
+    if (!r.media_id) continue;
+    const kind = igKind(r.media_type, r.media_product_type);
+    const isVideo = kind === 'Reel' || kind === 'Video';
+    const ts = str(r.media_timestamp).replace(/\+0000$/, 'Z');
+    const likes = num(r.media_like_count), comments = num(r.media_comments_count);
+    posts.set(`igp_${str(r.media_id)}`, {
+      id: `igp_${str(r.media_id)}`, handle, brand, platform: 'Instagram', posted_at: ts || null, posted: ts ? ts.slice(0, 10) : null, kind,
+      caption: str(r.media_caption), permalink: r.media_permalink ? str(r.media_permalink) : null,
+      media_url: r.media_url ? str(r.media_url) : null,
+      thumb_url: isVideo ? (r.media_thumbnail_url ? str(r.media_thumbnail_url) : null) : (r.media_url ? str(r.media_url) : null),
+      likes, comments, engagement: (likes ?? 0) + (comments ?? 0),
+    });
+  }
+  return { posts: scorePosts([...posts.values()], followers), accounts: [...accounts.values()] };
 }

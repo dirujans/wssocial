@@ -123,3 +123,13 @@ export interface Mention {
   action: string | null; priority: string | null; metric: string | null; posted_on: string | null; url: string | null;
   why: string | null; done: boolean; found_at: string;
 }
+
+export interface CompetitorPost {
+  id: string; handle: string; brand: string; platform: string; posted_at: string | null; posted: string | null;
+  kind: string | null; caption: string | null; permalink: string | null; media_url: string | null; thumb_url: string | null;
+  likes: number | null; comments: number | null; engagement: number | null; multiple: number | null; per_1k: number | null; viral: boolean;
+}
+
+export interface CompetitorAccountDay {
+  date: string; handle: string; platform: string; brand: string | null; followers: number | null; media_count: number | null;
+}

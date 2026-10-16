@@ -1,7 +1,7 @@
 import 'server-only';
 import { buildAlerts } from './alerts';
 import { supabaseAdmin } from './supabase';
-import { fetchAccountDays, fetchComments, fetchMedia, fetchPosts, fetchProfileDays } from './windsor';
+import { fetchAccountDays, fetchComments, fetchCompetitorSocial, fetchMedia, fetchPosts, fetchProfileDays } from './windsor';
 
 export interface SyncResult { status: 'ok' | 'partial' | 'error'; errors: string[]; [k: string]: unknown }
 
@@ -14,8 +14,8 @@ export async function runSync(): Promise<SyncResult> {
   const detail: Record<string, unknown> = {};
   const errors: string[] = [];
 
-  const [daysR, postsR, commentsR, mediaR, accountR] = await Promise.allSettled([
-    fetchProfileDays(), fetchPosts(), fetchComments(), fetchMedia(), fetchAccountDays(),
+  const [daysR, postsR, commentsR, mediaR, accountR, rivalsR] = await Promise.allSettled([
+    fetchProfileDays(), fetchPosts(), fetchComments(), fetchMedia(), fetchAccountDays(), fetchCompetitorSocial(),
   ]);
 
   if (daysR.status === 'fulfilled') {
@@ -42,6 +42,14 @@ export async function runSync(): Promise<SyncResult> {
     if (error || ferr) errors.push(`account_daily: ${(error ?? ferr)!.message}`); else detail.account_days = accountR.value.metrics.length;
   } else errors.push(`Windsor Instagram/TikTok daily: ${why(accountR)}`);
 
+  if (rivalsR.status === 'fulfilled') {
+    const { posts, accounts } = rivalsR.value;
+    const { error } = await db.from('competitor_posts').upsert(posts.map((p) => ({ ...p, updated_at: started_at })), { onConflict: 'id' });
+    const { error: aerr } = error ? { error: null } : await db.from('competitor_accounts_daily').upsert(accounts, { onConflict: 'date,handle,platform' });
+    if (error || aerr) errors.push(`competitor_posts: ${(error ?? aerr)!.message}`);
+    else { detail.competitor_posts = posts.length; detail.competitor_handles = accounts.length; }
+  } else errors.push(`Windsor Instagram public (competitors): ${why(rivalsR)}`);
+
   if (commentsR.status === 'fulfilled') {
     const links = new Map<string, string>();
     if (postsR.status === 'fulfilled') postsR.value.forEach((p) => p.link && links.set(p.comment_key, p.link));
@@ -58,7 +66,7 @@ export async function runSync(): Promise<SyncResult> {
     }
   } else errors.push(`Windsor comments: ${why(commentsR)}`);
 
-  const anyOk = [daysR, postsR, commentsR, mediaR, accountR].some((r) => r.status === 'fulfilled');
+  const anyOk = [daysR, postsR, commentsR, mediaR, accountR, rivalsR].some((r) => r.status === 'fulfilled');
   const status: SyncResult['status'] = errors.length === 0 ? 'ok' : anyOk ? 'partial' : 'error';
   await db.from('sync_log').insert({ job: 'windsor', status, started_at, finished_at: new Date().toISOString(), detail: { ...detail, errors } });
   return { status, ...detail, errors } as SyncResult;
