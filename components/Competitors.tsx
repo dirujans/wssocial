@@ -67,7 +67,10 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
         <div className="inner">
           <div className="row" style={{ alignItems: 'center' }}>
             <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
-            <Link href="/" className="chip" style={{ textDecoration: 'none' }}>← Our channels</Link>
+            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
+              <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience</Link>
+            </span>
           </div>
           <h1>Competitor watch</h1>
           <p className="take">

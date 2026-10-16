@@ -1,7 +1,7 @@
 import 'server-only';
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
-import type { AccountDay, Alert, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
+import type { AccountDay, Alert, AudienceDemo, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
 
 export interface DashboardData {
   days: ProfileDay[];
@@ -66,5 +66,33 @@ export async function loadCompetitors(): Promise<CompetitorData> {
     accounts: (a.data ?? []) as CompetitorAccountDay[],
     items: (i.data ?? []) as CompetitorItem[],
     lastSync: (s.data?.[0] as CompetitorData['lastSync']) ?? null,
+  };
+}
+
+export interface AudienceData {
+  demo: AudienceDemo[];
+  accountDays: AccountDay[];
+  comments: Comment[];
+  mentions: Mention[];
+  lastSync: { status: string; finished_at: string } | null;
+}
+
+/** Our Audience page: demographics and follower totals, 30 days of daily totals, 60 days of comments and mentions. */
+export async function loadAudience(): Promise<AudienceData> {
+  const db = supabaseAdmin();
+  const [d, a, c, m, s] = await Promise.all([
+    db.from('audience_demo').select('*'),
+    db.from('account_daily').select('*').gte('date', shiftDay(today(), -30)).order('date'),
+    db.from('comments').select('*').gte('post_date', shiftDay(today(), -60)).order('likes', { ascending: false }).limit(5000),
+    db.from('mentions').select('*').gte('posted_on', shiftDay(today(), -60)).order('posted_on', { ascending: false }).limit(300),
+    db.from('sync_log').select('status,finished_at').order('started_at', { ascending: false }).limit(1),
+  ]);
+  for (const r of [d, a, c, m, s]) if (r.error) throw new Error(r.error.message);
+  return {
+    demo: (d.data ?? []) as AudienceDemo[],
+    accountDays: (a.data ?? []) as AccountDay[],
+    comments: (c.data ?? []) as Comment[],
+    mentions: (m.data ?? []) as Mention[],
+    lastSync: (s.data?.[0] as AudienceData['lastSync']) ?? null,
   };
 }

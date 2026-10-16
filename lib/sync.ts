@@ -1,7 +1,7 @@
 import 'server-only';
 import { buildAlerts } from './alerts';
 import { supabaseAdmin } from './supabase';
-import { fetchAccountDays, fetchComments, fetchCompetitorSocial, fetchMedia, fetchPosts, fetchProfileDays } from './windsor';
+import { fetchAccountDays, fetchAudience, fetchComments, fetchCompetitorSocial, fetchMedia, fetchPosts, fetchProfileDays } from './windsor';
 
 export interface SyncResult { status: 'ok' | 'partial' | 'error'; errors: string[]; [k: string]: unknown }
 
@@ -14,8 +14,8 @@ export async function runSync(): Promise<SyncResult> {
   const detail: Record<string, unknown> = {};
   const errors: string[] = [];
 
-  const [daysR, postsR, commentsR, mediaR, accountR, rivalsR] = await Promise.allSettled([
-    fetchProfileDays(), fetchPosts(), fetchComments(), fetchMedia(), fetchAccountDays(), fetchCompetitorSocial(),
+  const [daysR, postsR, commentsR, mediaR, accountR, rivalsR, audR] = await Promise.allSettled([
+    fetchProfileDays(), fetchPosts(), fetchComments(), fetchMedia(), fetchAccountDays(), fetchCompetitorSocial(), fetchAudience(),
   ]);
 
   if (daysR.status === 'fulfilled') {
@@ -50,6 +50,11 @@ export async function runSync(): Promise<SyncResult> {
     else { detail.competitor_posts = posts.length; detail.competitor_handles = accounts.length; }
   } else errors.push(`Windsor Instagram public (competitors): ${why(rivalsR)}`);
 
+  if (audR.status === 'fulfilled') {
+    const { error } = await db.from('audience_demo').upsert(audR.value, { onConflict: 'platform,dimension,key' });
+    if (error) errors.push(`audience_demo: ${error.message}`); else detail.audience_rows = audR.value.length;
+  } else errors.push(`Windsor audience: ${why(audR)}`);
+
   if (commentsR.status === 'fulfilled') {
     const links = new Map<string, string>();
     if (postsR.status === 'fulfilled') postsR.value.forEach((p) => p.link && links.set(p.comment_key, p.link));
@@ -66,7 +71,7 @@ export async function runSync(): Promise<SyncResult> {
     }
   } else errors.push(`Windsor comments: ${why(commentsR)}`);
 
-  const anyOk = [daysR, postsR, commentsR, mediaR, accountR, rivalsR].some((r) => r.status === 'fulfilled');
+  const anyOk = [daysR, postsR, commentsR, mediaR, accountR, rivalsR, audR].some((r) => r.status === 'fulfilled');
   const status: SyncResult['status'] = errors.length === 0 ? 'ok' : anyOk ? 'partial' : 'error';
   await db.from('sync_log').insert({ job: 'windsor', status, started_at, finished_at: new Date().toISOString(), detail: { ...detail, errors } });
   return { status, ...detail, errors } as SyncResult;

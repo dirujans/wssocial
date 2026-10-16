@@ -292,3 +292,35 @@ details.card[open] > summary { margin-bottom: 6px; }
   .filters .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
   .filters .seg::-webkit-scrollbar { display: none; }
 }
+
+/* ---------- Our audience ---------- */
+.stat7 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr)); }
+.mini.hot { border-color: var(--opal); background: linear-gradient(160deg, rgba(0,167,138,.18), var(--panel) 70%); }
+.mini .eyebrow { text-transform: uppercase; }
+.hbar { display: grid; grid-template-columns: minmax(5.5rem, 9rem) 1fr auto; gap: 10px; align-items: center; font-size: .84rem; }
+.hbar .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.hbar .track { display: flex; height: 12px; border-radius: 6px; background: var(--chip); overflow: hidden; }
+.hbar .track > span { display: block; height: 100%; border-radius: 0; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.hbar .val { font-variant-numeric: tabular-nums; font-weight: 800; min-width: 3.2rem; text-align: right; }
+.stack { display: flex; height: 18px; border-radius: 9px; overflow: hidden; gap: 2px; margin-top: 12px; }
+.stack > span { display: block; min-width: 3px; }
+.stack.tall { height: 44px; border-radius: 12px; margin: 0 0 16px; }
+.stack.tall > span { display: flex; align-items: center; padding: 0 8px; font-weight: 900; font-stretch: 62%; font-style: italic; text-transform: uppercase; font-size: .9rem; color: #000; white-space: nowrap; overflow: hidden; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: .8rem; text-transform: capitalize; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; }
+.bigline { display: flex; align-items: baseline; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.bigline b { font-style: italic; font-weight: 900; font-stretch: 62%; font-size: clamp(3rem, 7vw, 5rem); line-height: .85; color: var(--opal-hi); }
+.sub-h { margin: 18px 0 8px; font-weight: 900; font-stretch: 75%; text-transform: uppercase; font-size: .78rem; letter-spacing: .06em; color: var(--muted); }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 12px; }
+.flav { position: relative; overflow: hidden; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; border-top: 6px solid var(--fc); }
+.flav::after { content: ""; position: absolute; right: -30px; top: -30px; width: 110px; height: 110px; border-radius: 50%; background: var(--fc); opacity: .12; pointer-events: none; }
+.flav .fhead { display: flex; gap: 12px; align-items: flex-start; }
+.flav .rankn { font-style: italic; font-weight: 900; font-stretch: 62%; font-size: 2.6rem; line-height: .8; color: var(--fc); }
+.flav .fname { font-style: italic; font-weight: 900; font-stretch: 62%; text-transform: uppercase; font-size: 1.55rem; line-height: .9; }
+.meter { position: relative; height: 10px; border-radius: 5px; background: var(--chip); }
+.meter .mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--line-2); }
+.meter .fill { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
+.fstats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .78rem; color: var(--muted); }
+.fstats b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.fquote { margin: 0; font-size: .86rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.split3 { gap: 0; }

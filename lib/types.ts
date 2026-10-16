@@ -133,3 +133,5 @@ export interface CompetitorPost {
 export interface CompetitorAccountDay {
   date: string; handle: string; platform: string; brand: string | null; followers: number | null; media_count: number | null;
 }
+
+export interface AudienceDemo { platform: string; dimension: string; key: string; value: number | null; unit: string | null; snapshot_date: string }

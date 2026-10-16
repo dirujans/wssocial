@@ -5,7 +5,7 @@
 import { fetchWithRetry } from './http';
 import { themeOf } from './themes';
 import { brandOf, scorePosts } from './competitors';
-import { NETWORK_TO_CHANNEL, type AccountDay, type Comment, type CompetitorAccountDay, type CompetitorPost, type Media, type Post, type ProfileDay } from './types';
+import { NETWORK_TO_CHANNEL, type AccountDay, type Comment, type AudienceDemo, type CompetitorAccountDay, type CompetitorPost, type Media, type Post, type ProfileDay } from './types';
 
 const BASE = 'https://connectors.windsor.ai';
 
@@ -269,4 +269,48 @@ export async function fetchCompetitorSocial(datePreset = 'last_120d'): Promise<{
     });
   }
   return { posts: scorePosts([...posts.values()], followers), accounts: [...accounts.values()] };
+}
+
+/**
+ * Who follows us: Instagram UK and Ireland (lifetime follower demographics, counts) and TikTok (follower shares).
+ * Plus current follower totals per platform. One latest snapshot per key; history is not needed for demographics.
+ */
+export async function fetchAudience(): Promise<AudienceDemo[]> {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+  const out: AudienceDemo[] = [];
+  const add = (platform: string, dimension: string, key: unknown, value: unknown, unit: 'count' | 'share') => {
+    const k = str(key).trim(); const v = num(value);
+    if (k && v != null) out.push({ platform, dimension, key: k, value: v, unit, snapshot_date: today });
+  };
+  const igName = (id: unknown) => (str(id) === ACCOUNTS.instagramIE ? 'Instagram IE' : 'Instagram');
+  const ig = [ACCOUNTS.instagramUK, ACCOUNTS.instagramIE];
+  const settled = await Promise.allSettled([
+    windsor('instagram', ['account_id', 'audience_gender_age_name', 'audience_gender_age_size'], { datePreset: 'last_7d', accounts: ig }),
+    windsor('instagram', ['account_id', 'city', 'audience_city_size'], { datePreset: 'last_7d', accounts: ig }),
+    windsor('instagram', ['account_id', 'audience_country_name', 'audience_country_size'], { datePreset: 'last_7d', accounts: ig }),
+    windsor('instagram', ['account_id', 'followers_count', 'media_count'], { datePreset: 'last_3d', accounts: ig }),
+    windsor('tiktok_organic', ['audience_ages_age', 'audience_ages_percentage'], { datePreset: 'last_7d' }),
+    windsor('tiktok_organic', ['audience_genders_gender', 'audience_genders_percentage'], { datePreset: 'last_7d' }),
+    windsor('tiktok_organic', ['audience_countries_country', 'audience_countries_percentage'], { datePreset: 'last_7d' }),
+    windsor('tiktok_organic', ['audience_cities_city_name', 'audience_cities_percentage'], { datePreset: 'last_7d' }),
+    windsor('tiktok_organic', ['date', 'total_followers_count', 'total_likes', 'videos_count'], { datePreset: 'last_7d' }),
+  ]);
+  const rows = (i: number) => (settled[i].status === 'fulfilled' ? (settled[i] as PromiseFulfilledResult<Row[]>).value : []);
+  rows(0).forEach((r) => add(igName(r.account_id), 'gender_age', r.audience_gender_age_name, r.audience_gender_age_size, 'count'));
+  rows(1).forEach((r) => add(igName(r.account_id), 'city', r.city, r.audience_city_size, 'count'));
+  rows(2).forEach((r) => add(igName(r.account_id), 'country', r.audience_country_name, r.audience_country_size, 'count'));
+  rows(3).forEach((r) => { add(igName(r.account_id), 'total', 'followers', r.followers_count, 'count'); add(igName(r.account_id), 'total', 'posts', r.media_count, 'count'); });
+  rows(4).forEach((r) => add('TikTok', 'age', r.audience_ages_age, r.audience_ages_percentage, 'share'));
+  rows(5).forEach((r) => add('TikTok', 'gender', r.audience_genders_gender, r.audience_genders_percentage, 'share'));
+  rows(6).forEach((r) => add('TikTok', 'country', r.audience_countries_country, r.audience_countries_percentage, 'share'));
+  rows(7).forEach((r) => add('TikTok', 'city', r.audience_cities_city_name, r.audience_cities_percentage, 'share'));
+  // TikTok totals: latest day with a real count (recent days can come back as 0).
+  const tt = rows(8).filter((r) => (num(r.total_followers_count) ?? 0) > 0).sort((a, b) => str(b.date).localeCompare(str(a.date)))[0];
+  if (tt) { add('TikTok', 'total', 'followers', tt.total_followers_count, 'count'); if (num(tt.total_likes)) add('TikTok', 'total', 'likes', tt.total_likes, 'count'); if (num(tt.videos_count)) add('TikTok', 'total', 'posts', tt.videos_count, 'count'); }
+  const failed = settled.filter((s) => s.status === 'rejected') as PromiseRejectedResult[];
+  if (failed.length === settled.length) throw new Error(String(failed[0].reason?.message ?? failed[0].reason));
+  // De-duplicate (same key can repeat across a 7-day window): keep the largest value.
+  const m = new Map<string, AudienceDemo>();
+  out.forEach((r) => { const k = `${r.platform}|${r.dimension}|${r.key}`; const cur = m.get(k); if (!cur || (r.value ?? 0) > (cur.value ?? 0)) m.set(k, r); });
+  return [...m.values()];
 }
