@@ -101,7 +101,7 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
         <div className="inner">
           <div className="small4">
             <div className="mini rise d1"><span className="eyebrow">Accounts tracked</span><div className="value"><CountUp value={rivalHandles} format={(n) => int(n)} /></div><div className="meta muted">plus Wingstop UK as the benchmark</div></div>
-            <div className="mini rise d2"><span className="eyebrow">Breakout posts · {win}d</span><div className="value"><CountUp value={viral.length} format={(n) => int(n)} /></div><div className="meta muted">2.5× or more that account&apos;s usual post</div></div>
+            <div className="mini rise d2"><span className="eyebrow">Breakout posts · {win}d</span><div className="value"><CountUp value={viral.length} format={(n) => int(n)} /></div><div className="meta muted">3× that account&apos;s usual post and in its top 10%</div></div>
             <div className="mini rise d3"><span className="eyebrow">Moves logged · {win}d</span><div className="value"><CountUp value={data.items.filter((i) => !BUZZ.has((i.kind ?? '').toLowerCase()) && (i.posted_on ?? '') >= from).length} format={(n) => int(n)} /></div><div className="meta muted">launches, drops, campaigns, openings</div></div>
             <div className="mini rise d4"><span className="eyebrow">Raising Cane&apos;s UK</span><div className="value" style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)' }}>Late 2026</div><div className="meta muted">Piccadilly flagship, no date confirmed</div></div>
           </div>

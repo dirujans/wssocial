@@ -34,20 +34,22 @@ const median = (xs: number[]) => {
 
 /**
  * Score each post against its own account: multiple of that account's median post, and engagement per 1k followers.
- * Viral = at least 2.5x the account's usual post, with enough posts (4+) for "usual" to mean something
- * and enough absolute engagement (300+) that small accounts don't flag noise.
+ * Breakout = at least 3x the account's usual post AND in that account's top 10% of posts, with enough posts (4+) for
+ * "usual" to mean something and enough engagement (300+) that small accounts don't flag noise. The top-10% rule stops
+ * accounts with a long tail of quiet posts (giveaways, reposts) from flagging a third of everything.
  */
 export function scorePosts<T extends Pick<CompetitorPost, 'handle' | 'engagement'>>(rows: T[], followers: Record<string, number | null>): (T & { multiple: number | null; per_1k: number | null; viral: boolean })[] {
   const byHandle = new Map<string, number[]>();
   rows.forEach((r) => { const a = byHandle.get(r.handle) ?? []; a.push(r.engagement ?? 0); byHandle.set(r.handle, a); });
-  const med = new Map([...byHandle].map(([h, xs]) => [h, { m: median(xs), n: xs.length }]));
+  const p90 = (xs: number[]) => { const t = [...xs].sort((a, b) => a - b); return t[Math.min(t.length - 1, Math.floor(t.length * 0.9))] ?? 0; };
+  const med = new Map([...byHandle].map(([h, xs]) => [h, { m: median(xs), n: xs.length, top: p90(xs) }]));
   return rows.map((r) => {
     const s = med.get(r.handle)!;
     const e = r.engagement ?? 0;
     const multiple = s.m > 0 ? e / s.m : null;
     const f = followers[r.handle];
     const per_1k = f ? (e / f) * 1000 : null;
-    return { ...r, multiple, per_1k, viral: s.n >= 4 && multiple != null && multiple >= 2.5 && e >= 300 };
+    return { ...r, multiple, per_1k, viral: s.n >= 4 && multiple != null && multiple >= 3 && e >= s.top && e >= 300 };
   });
 }
 
