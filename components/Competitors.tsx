@@ -57,8 +57,9 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
   const moves = data.items.filter((i) => !BUZZ.has((i.kind ?? '').toLowerCase()) && inBrand(i.brand) && (i.posted_on ?? '') >= from);
   const buzz = data.items.filter((i) => BUZZ.has((i.kind ?? '').toLowerCase()) && inBrand(i.brand));
   const canes = data.items.filter((i) => keyOf(i.brand) === 'raising');
-  const canesBoard = board.find((b) => b.handle === 'raisingcanes');
-  const canesPosts = data.posts.filter((p) => p.handle === 'raisingcanes').sort((a, b) => (b.engagement ?? 0) - (a.engagement ?? 0)).slice(0, 6);
+  const isCanes = (h: string) => h.startsWith('raisingcanes');
+  const canesBoard = board.find((b) => b.handle === 'raisingcanes_uk') ?? board.find((b) => isCanes(b.handle));
+  const canesPosts = data.posts.filter((p) => isCanes(p.handle)).sort((a, b) => (b.engagement ?? 0) - (a.engagement ?? 0)).slice(0, 6);
 
   return (
     <main className="shell">
@@ -165,7 +166,7 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
                 <li>Arrives with a fanbase already built online: fake &ldquo;it&apos;s open in London&rdquo; TikToks have pulled six-figure likes.</li>
               </ul>
               <div className="meta">
-                {canesBoard ? <><span className="likes">{compact(canesBoard.followers)}</span><span>Instagram followers{canesBoard.followersChange7 != null ? ` · ${signedInt(canesBoard.followersChange7)} this week` : ''}</span></> : <span>Add @raisingcanes in Windsor to track their posts here.</span>}
+                {canesBoard ? <><span className="likes">{compact(canesBoard.followers)}</span><span>followers on @{canesBoard.handle}{canesBoard.followersChange7 != null ? ` · ${signedInt(canesBoard.followersChange7)} this week` : ''}</span></> : <span>Their posts appear here after the next sync.</span>}
               </div>
             </div>
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

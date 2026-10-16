@@ -6,7 +6,9 @@ export interface BrandInfo { brand: string; us?: boolean; colour: string }
 /** Instagram handle → display brand. Unknown handles still show, under their handle. */
 export const BRANDS: Record<string, BrandInfo> = {
   wingstopuk: { brand: 'Wingstop UK', us: true, colour: 'var(--opal)' },
+  raisingcanes_uk: { brand: "Raising Cane's UK", colour: '#E2231A' },
   raisingcanes: { brand: "Raising Cane's", colour: '#E2231A' },
+  kfc_uki: { brand: 'KFC UK&I', colour: '#C8102E' },
   kfcuki: { brand: 'KFC UK&I', colour: '#C8102E' },
   kfcuk: { brand: 'KFC UK', colour: '#C8102E' },
   popeyesuk: { brand: 'Popeyes UK', colour: '#F25F1C' },
