@@ -6,6 +6,7 @@ import type { CompetitorData } from '@/lib/data';
 import { brandOf, scoreboard, type BrandScore } from '@/lib/competitors';
 import type { CompetitorItem, CompetitorPost } from '@/lib/types';
 import CountUp from './CountUp';
+import { BrandFile, GrowthPanel } from './CompetitorGrowth';
 import SyncButton from './SyncButton';
 import { compact, day, int, safeHref, signedInt } from './format';
 
@@ -54,7 +55,6 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
   const viral = rivals.filter((p) => p.viral && (p.posted ?? '') >= from);
   const biggest = [...rivals].filter((p) => (p.posted ?? '') >= from).sort((a, b) => (b.multiple ?? 0) - (a.multiple ?? 0))[0];
   const rivalHandles = board.filter((b) => !b.us).length;
-  const moves = data.items.filter((i) => !BUZZ.has((i.kind ?? '').toLowerCase()) && inBrand(i.brand) && (i.posted_on ?? '') >= from);
   const buzz = data.items.filter((i) => BUZZ.has((i.kind ?? '').toLowerCase()) && inBrand(i.brand));
   const canes = data.items.filter((i) => keyOf(i.brand) === 'raising');
   const isCanes = (h: string) => h.startsWith('raisingcanes');
@@ -105,6 +105,7 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
       </section>
 
       <Scoreboard board={board.filter((b) => inBrand(b.brand))} onOpen={setOpen} />
+      <GrowthPanel posts={data.posts} accounts={data.accounts} board={board.filter((b) => inBrand(b.brand) || b.us)} today={today} />
 
       <section className="band" id="viral">
         <div className="inner">
@@ -153,6 +154,8 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
         </div>
       </section>
 
+      <BrandFile items={data.items} board={board} inBrand={inBrand} />
+
       <section className="band" id="canes">
         <div className="inner">
           <div className="band-head"><div><span className="eyebrow">Arriving in London · tracked daily</span><h2>Raising Cane&apos;s</h2></div></div>
@@ -192,13 +195,6 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
             </div>
           )}
           <Feed items={canes} empty="Nothing logged on Raising Cane's yet." />
-        </div>
-      </section>
-
-      <section className="band" id="moves">
-        <div className="inner">
-          <div className="band-head"><div><span className="eyebrow">Launches, drops, campaigns, openings · last {win} days</span><h2>Moves</h2></div></div>
-          <Feed items={moves} empty="No moves logged for this filter. The morning brief adds to this daily." />
         </div>
       </section>
 

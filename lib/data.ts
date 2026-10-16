@@ -55,7 +55,7 @@ export interface CompetitorData {
 export async function loadCompetitors(): Promise<CompetitorData> {
   const db = supabaseAdmin();
   const [p, a, i, s] = await Promise.all([
-    db.from('competitor_posts').select('*').gte('posted', shiftDay(today(), -60)).order('posted_at', { ascending: false }).limit(2000),
+    db.from('competitor_posts').select('*').gte('posted', shiftDay(today(), -120)).order('posted_at', { ascending: false }).limit(2000),
     db.from('competitor_accounts_daily').select('*').gte('date', shiftDay(today(), -90)).order('date'),
     db.from('competitor_items').select('*').or(`posted_on.gte.${shiftDay(today(), -120)},brand.ilike.%cane%`).order('posted_on', { ascending: false }).limit(200),
     db.from('sync_log').select('status,finished_at').order('started_at', { ascending: false }).limit(1),

@@ -238,7 +238,7 @@ export async function fetchAccountDays(): Promise<{ metrics: Omit<AccountDay, 'f
  * so new competitors need no code change. Includes @wingstopuk as our own benchmark.
  * Returns posts scored against each account's own median, plus today's follower snapshot per handle.
  */
-export async function fetchCompetitorSocial(datePreset = 'last_60d'): Promise<{ posts: CompetitorPost[]; accounts: CompetitorAccountDay[] }> {
+export async function fetchCompetitorSocial(datePreset = 'last_120d'): Promise<{ posts: CompetitorPost[]; accounts: CompetitorAccountDay[] }> {
   const rows = await windsor(
     'instagram_public',
     ['account_name', 'profile_followers_count', 'profile_media_count', 'media_id', 'media_timestamp', 'media_type', 'media_product_type', 'media_like_count', 'media_comments_count', 'media_permalink', 'media_thumbnail_url', 'media_url', 'media_caption'],

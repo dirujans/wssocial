@@ -87,3 +87,40 @@ export function scoreboard(posts: CompetitorPost[], days: CompetitorAccountDay[]
     };
   }).sort((a, b) => Number(b.us) - Number(a.us) || (b.followers ?? 0) - (a.followers ?? 0));
 }
+
+export type GrowthMetric = 'per1k' | 'engagement' | 'avg' | 'posts' | 'followers';
+
+/** Monday (UTC) of the week a date falls in. */
+export const mondayOf = (d: string) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7)); return t.toISOString().slice(0, 10); };
+
+/**
+ * Growth over time, one row per period with a column per handle.
+ * Post metrics are weekly (by the week a post went up): average engagement per 1k followers, total engagement,
+ * average engagement per post, posts. Followers are daily snapshots, which only exist from the day a handle was added.
+ * The current, unfinished week is included but flagged so the chart can mark it.
+ */
+export function growthSeries(posts: CompetitorPost[], days: CompetitorAccountDay[], handles: string[], metric: GrowthMetric, today: string): { key: string; partial?: boolean; [h: string]: number | string | boolean | null | undefined }[] {
+  if (metric === 'followers') {
+    const dates = [...new Set(days.map((d) => d.date))].sort();
+    return dates.map((date) => {
+      const row: { key: string; [h: string]: number | string | null } = { key: date };
+      handles.forEach((h) => { row[h] = days.find((d) => d.date === date && d.handle === h)?.followers ?? null; });
+      return row;
+    });
+  }
+  const weeks = [...new Set(posts.map((p) => p.posted && mondayOf(p.posted)).filter(Boolean) as string[])].sort();
+  const thisWeek = mondayOf(today);
+  return weeks.map((w) => {
+    const row: { key: string; partial?: boolean; [h: string]: number | string | boolean | null | undefined } = { key: w, partial: w === thisWeek };
+    handles.forEach((h) => {
+      const ps = posts.filter((p) => p.handle === h && p.posted && mondayOf(p.posted) === w);
+      if (metric === 'posts') { row[h] = ps.length; return; }
+      if (!ps.length) { row[h] = null; return; }
+      const eng = ps.reduce((s, p) => s + (p.engagement ?? 0), 0);
+      if (metric === 'engagement') row[h] = eng;
+      else if (metric === 'avg') row[h] = eng / ps.length;
+      else { const v = ps.map((p) => p.per_1k).filter((x): x is number => x != null); row[h] = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; }
+    });
+    return row;
+  });
+}

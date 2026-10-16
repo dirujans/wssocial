@@ -42,3 +42,17 @@ test('scoreboard puts us first and counts this week vs last', () => {
   assert.equal(c.viral30, 1);
   assert.equal(c.top?.engagement, 900);
 });
+
+test('growthSeries buckets posts by Monday week and averages per 1k', async () => {
+  const { growthSeries, mondayOf } = await import('../lib/competitors');
+  assert.equal(mondayOf('2026-10-18'), '2026-10-12'); // Sunday → Monday before
+  const posts = [post('kfc_uki', 100, '2026-10-12', { per_1k: 2 }), post('kfc_uki', 300, '2026-10-14', { per_1k: 4 }), post('kfc_uki', 50, '2026-10-05', { per_1k: 1 })];
+  const per = growthSeries(posts, [], ['kfc_uki', 'nandosuk'], 'per1k', '2026-10-16');
+  assert.deepEqual(per.map((r) => r.key), ['2026-10-05', '2026-10-12']);
+  assert.equal(per[1].kfc_uki, 3);
+  assert.equal(per[1].partial, true);
+  assert.equal(per[1].nandosuk, null);
+  const cnt = growthSeries(posts, [], ['kfc_uki', 'nandosuk'], 'posts', '2026-10-16');
+  assert.equal(cnt[1].kfc_uki, 2);
+  assert.equal(cnt[1].nandosuk, 0);
+});
