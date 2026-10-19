@@ -168,37 +168,40 @@ export function boosts(rows: AdDay[], posts: PostLike[]): Boost[] {
 export type Split = 'combined' | 'organic' | 'paid';
 
 /**
- * Daily views per platform split into organic and paid.
- * Instagram: account views are treated as including ad views only when igIncludesAds is true (checked by paidShareCheck);
- * otherwise account views are organic and paid is added on top.
- * TikTok: account plays include Spark plays; non-Spark ads run outside the account and are added on top.
+ * How much of Instagram's account-level daily views comes from ads, learnt from our own history:
+ * views = organic baseline + k x Instagram ad impressions. If the fit is strong, k is how many account views each
+ * ad impression adds (close to 1 means ads are fully inside the account figure). If the fit is weak we don't subtract.
+ * Checked 20 Oct 2026: account views tracked Instagram ad impressions almost one for one (e.g. 1 to 4 Oct).
  */
-export function splitViews(day: string, platform: 'Instagram' | 'TikTok', accountViews: number, paid: ReturnType<typeof paidByDay>, igIncludesAds: boolean) {
-  const p = paid.get(day);
-  if (platform === 'Instagram') {
-    const ads = p?.igImpressions ?? 0;
-    const organic = igIncludesAds ? Math.max(0, accountViews - ads) : accountViews;
-    return { organic, paid: ads, combined: organic + ads };
-  }
-  const spark = p?.ttSparkPlays ?? 0, other = (p?.ttPlays ?? 0) - spark;
-  const organic = Math.max(0, accountViews - spark);
-  return { organic, paid: spark + other, combined: organic + spark + other };
+export function igPaidModel(accountViews: Map<string, number>, paid: ReturnType<typeof paidByDay>) {
+  const days = [...accountViews.keys()];
+  const xs = days.map((d) => paid.get(d)?.igImpressions ?? 0), ys = days.map((d) => accountViews.get(d) ?? 0);
+  const withAds = xs.filter((x) => x > 1000).length;
+  if (days.length < 21 || withAds < 10) return { days: days.length, withAds, k: null as number | null, baseline: null as number | null, correlation: null as number | null, includesAds: false };
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  const sxy = xs.reduce((t, x, i) => t + (x - mx) * (ys[i] - my), 0), sxx = xs.reduce((t, x) => t + (x - mx) ** 2, 0), syy = ys.reduce((t, y) => t + (y - my) ** 2, 0);
+  const k = sxx ? sxy / sxx : null;
+  const correlation = sxx && syy ? sxy / Math.sqrt(sxx * syy) : null;
+  const includesAds = k != null && correlation != null && correlation >= 0.6 && k >= 0.4 && k <= 1.6;
+  return { days: days.length, withAds, k: includesAds ? Math.min(1, k!) : null, baseline: k != null ? my - k * mx : null, correlation, includesAds };
 }
 
 /**
- * Does Instagram's account-level daily views include ad views? If it did, on every day with ads the account figure
- * would be at least the Instagram ad impressions, and the two would move together. Returns the evidence, not a guess.
+ * Daily views per platform split into organic and paid.
+ * Instagram: when the model says account views include ads, paid = k x ad impressions, taken out of the account figure;
+ * otherwise account views are organic and ad impressions are added on top.
+ * TikTok: account plays include Spark plays; non-Spark ads run outside the account and are added on top.
  */
-export function paidShareCheck(accountViews: Map<string, number>, paid: ReturnType<typeof paidByDay>) {
-  const days = [...accountViews.keys()].filter((d) => (paid.get(d)?.igImpressions ?? 0) > 1000);
-  if (days.length < 10) return { days: days.length, coversAds: null as number | null, correlation: null as number | null, includesAds: null as boolean | null };
-  const xs = days.map((d) => paid.get(d)!.igImpressions), ys = days.map((d) => accountViews.get(d)!);
-  const coversAds = days.filter((d, i) => ys[i] >= xs[i]).length / days.length;
-  const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
-  const cov = xs.reduce((s2, x, i) => s2 + (x - mx) * (ys[i] - my), 0);
-  const vx = Math.sqrt(xs.reduce((s2, x) => s2 + (x - mx) ** 2, 0)), vy = Math.sqrt(ys.reduce((s2, y) => s2 + (y - my) ** 2, 0));
-  const correlation = vx && vy ? cov / (vx * vy) : null;
-  return { days: days.length, coversAds, correlation, includesAds: coversAds >= 0.9 && (correlation ?? 0) >= 0.5 };
+export function splitViews(day: string, platform: 'Instagram' | 'TikTok', accountViews: number, paid: ReturnType<typeof paidByDay>, igK: number | null) {
+  const p = paid.get(day);
+  if (platform === 'Instagram') {
+    const ads = p?.igImpressions ?? 0;
+    if (igK != null) { const inside = Math.min(accountViews, Math.round(ads * igK)); return { organic: accountViews - inside, paid: inside, combined: accountViews }; }
+    return { organic: accountViews, paid: ads, combined: accountViews + ads };
+  }
+  const spark = p?.ttSparkPlays ?? 0, other = (p?.ttPlays ?? 0) - spark;
+  const inside = Math.min(accountViews, spark);
+  return { organic: accountViews - inside, paid: inside + other, combined: accountViews + other };
 }
 
 /* ---------- Spikes ---------- */

@@ -40,10 +40,12 @@ export async function GET(req: Request) {
   const sp = url.searchParams.get('sync');
   if (sp === 'core' || sp === 'intel' || sp === 'all') { const t0 = Date.now(); const r = await runSync(sp); return Response.json({ ms: Date.now() - t0, ...r }); }
   const ads = url.searchParams.get('ads');
-  if (ads && /^last_\d+dT?$/.test(ads)) { const t0 = Date.now(); return Response.json({ ms: Date.now() - t0, ...(await syncAds(ads)), took: Date.now() - t0 }); }
+  if (ads && (/^last_\d+dT?$/.test(ads) || /^\d{4}-\d{2}-\d{2}\.\.\d{4}-\d{2}-\d{2}$/.test(ads))) { const t0 = Date.now(); return Response.json({ ms: Date.now() - t0, ...(await syncAds(ads)), took: Date.now() - t0 }); }
   if (url.searchParams.get('geocode') === 'stores') return Response.json(await geocodeStores(Number(url.searchParams.get('max') ?? 40)));
   if (url.searchParams.get('run') === 'jobs') return Response.json(await runApifyStep());
-  const which = (url.searchParams.get('only') ?? 'tiktok,instagram,trends').split(',').filter((k) => PROBES[k]);
+  // Actor probes cost credit, so they only run when named explicitly (?only=tiktok,trends).
+  const which = (url.searchParams.get('only') ?? '').split(',').filter((k) => PROBES[k]);
+  if (!which.length) return Response.json({ error: 'Nothing to do. Use sync, run, ads, geocode, abort or only.' }, { status: 400 });
   const override = url.searchParams.get('input');
   const results = await Promise.allSettled(which.map((k) => runActor<Record<string, unknown>>(PROBES[k].actor, override && which.length === 1 ? JSON.parse(override) : PROBES[k].input, { waitSecs: 50, limit: 60 })));
   const out = Object.fromEntries(which.map((k, i) => {

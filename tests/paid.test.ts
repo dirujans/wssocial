@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { agencyOf, boosts, mapMetaAds, mapTikTokAds, paidByDay, paidShareCheck, spikes, splitViews, totals } from '../lib/paid';
+import { agencyOf, boosts, igPaidModel, mapMetaAds, mapTikTokAds, paidByDay, spikes, splitViews, totals } from '../lib/paid';
 
 test('agencyOf: campaign prefix wins, then account owner', () => {
   assert.equal(agencyOf('Meta', '1339656694773714', 'MSQ_REACH_HotHoney'), 'MSQ');
@@ -24,14 +24,18 @@ test('splitViews: TikTok removes Spark plays from the account figure; Instagram 
   const rows = mapTikTokAds([{ date: '2026-10-19', account_id: '7031642344902426625', ad_id: '9', item_id: '777', identity_type: 'BC_AUTH_TT', spend: 50, impressions: 5000, total_play: 4000 }])
     .concat(mapMetaAds([{ date: '2026-10-19', account_id: '1339656694773714', ad_id: '1', publisher_platform: 'instagram', spend: 10, impressions: 3000 }]));
   const p = paidByDay(rows);
-  assert.deepEqual(splitViews('2026-10-19', 'TikTok', 10000, p, false), { organic: 6000, paid: 4000, combined: 10000 });
-  assert.deepEqual(splitViews('2026-10-19', 'Instagram', 10000, p, false), { organic: 10000, paid: 3000, combined: 13000 });
-  assert.deepEqual(splitViews('2026-10-19', 'Instagram', 10000, p, true), { organic: 7000, paid: 3000, combined: 10000 });
+  assert.deepEqual(splitViews('2026-10-19', 'TikTok', 10000, p, null), { organic: 6000, paid: 4000, combined: 10000 });
+  assert.deepEqual(splitViews('2026-10-19', 'Instagram', 10000, p, null), { organic: 10000, paid: 3000, combined: 13000 });
+  assert.deepEqual(splitViews('2026-10-19', 'Instagram', 10000, p, 0.9), { organic: 7300, paid: 2700, combined: 10000 });
 });
 
-test('paidShareCheck needs evidence before saying account views include ads', () => {
-  const p = paidByDay([]);
-  assert.equal(paidShareCheck(new Map([['2026-10-01', 5]]), p).includesAds, null);
+test('igPaidModel learns how much of account views is ads, and refuses without evidence', () => {
+  assert.equal(igPaidModel(new Map([['2026-10-01', 5]]), paidByDay([])).includesAds, false);
+  const days = Array.from({ length: 30 }, (_, i) => `2026-09-${String(i + 1).padStart(2, '0')}`);
+  const ads = mapMetaAds(days.map((d, i) => ({ date: d, account_id: '1339656694773714', ad_id: '1', publisher_platform: 'instagram', spend: 1, impressions: i % 2 ? 100000 : 5000 })));
+  const views = new Map(days.map((d, i) => [d, 50000 + 0.9 * (i % 2 ? 100000 : 5000) + (i % 3) * 1000]));
+  const m = igPaidModel(views, paidByDay(ads));
+  assert.equal(m.includesAds, true); assert.ok(Math.abs((m.k ?? 0) - 0.9) < 0.05);
 });
 
 test('boosts compare organic views with unboosted peers', () => {

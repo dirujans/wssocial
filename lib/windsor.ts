@@ -18,11 +18,12 @@ export const ACCOUNTS = {
 
 type Row = Record<string, unknown>;
 
-export async function windsor(connector: string, fields: string[], opts: { datePreset?: string; accounts?: string[] }): Promise<Row[]> {
+export async function windsor(connector: string, fields: string[], opts: { datePreset?: string; dateFrom?: string; dateTo?: string; accounts?: string[] }): Promise<Row[]> {
   const key = process.env.WINDSOR_API_KEY;
   if (!key) throw new Error('WINDSOR_API_KEY is not set');
   const qs = new URLSearchParams({ api_key: key, fields: fields.join(',') });
-  if (opts.datePreset) qs.set('date_preset', opts.datePreset);
+  if (opts.dateFrom && opts.dateTo) { qs.set('date_from', opts.dateFrom); qs.set('date_to', opts.dateTo); }
+  else if (opts.datePreset) qs.set('date_preset', opts.datePreset);
   if (opts.accounts?.length) qs.set('select_accounts', opts.accounts.join(','));
   // Windsor caches each exact URL for 6 hours, so an otherwise identical call returns stale rows
   // (launch-day comments were missing). A per-run marker makes every sync a new URL.
@@ -330,10 +331,13 @@ const TIKTOK_AD_FIELDS = ['date', 'account_id', 'account_name', 'campaign_id', '
   'spend', 'impressions', 'reach', 'clicks', 'total_play', 'organic_video_views', 'focused_view_6s', 'likes', 'comments', 'shares', 'follows', 'profile_visits'];
 
 /** Ad-level daily rows for both Meta accounts (split by placement) and the TikTok account. Zero rows dropped. */
-export async function fetchAds(datePreset = 'last_7dT'): Promise<{ meta: AdDay[]; tiktok: AdDay[] }> {
+export async function fetchAds(range: string = 'last_7dT'): Promise<{ meta: AdDay[]; tiktok: AdDay[] }> {
+  // range: a preset (last_7dT) or explicit dates "2026-07-01..2026-07-31" for back-fills.
+  const m = range.match(/^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/);
+  const when = m ? { dateFrom: m[1], dateTo: m[2] } : { datePreset: range };
   const [meta, tiktok] = await Promise.all([
-    windsor('facebook', META_AD_FIELDS, { datePreset, accounts: Object.keys(META_ACCOUNTS) }),
-    windsor('tiktok', TIKTOK_AD_FIELDS, { datePreset, accounts: Object.keys(TIKTOK_ACCOUNTS) }),
+    windsor('facebook', META_AD_FIELDS, { ...when, accounts: Object.keys(META_ACCOUNTS) }),
+    windsor('tiktok', TIKTOK_AD_FIELDS, { ...when, accounts: Object.keys(TIKTOK_ACCOUNTS) }),
   ]);
   return { meta: mapMetaAds(meta), tiktok: mapTikTokAds(tiktok) };
 }
