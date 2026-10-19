@@ -29,7 +29,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     db.from('alerts').select('*').gte('created_at', new Date(Date.now() - 7 * 864e5).toISOString()).eq('dismissed', false).order('created_at', { ascending: false }).limit(20),
     db.from('competitor_items').select('*').gte('posted_on', shiftDay(today(), -30)).order('posted_on', { ascending: false }).limit(40),
     db.from('mentions').select('*').eq('done', false).gte('posted_on', shiftDay(today(), -30)).order('posted_on', { ascending: false }).limit(60),
-    db.from('sync_log').select('status,finished_at').order('started_at', { ascending: false }).limit(1),
+    db.from('sync_log').select('status,finished_at').not('finished_at', 'is', null).order('started_at', { ascending: false }).limit(1),
   ]);
   for (const r of [d, p, m, a, c, al, co, me, s]) if (r.error) throw new Error(r.error.message);
   return {
@@ -61,7 +61,7 @@ export async function loadCompetitors(): Promise<CompetitorData> {
     db.from('competitor_posts').select('*').gte('posted', shiftDay(today(), -120)).order('posted_at', { ascending: false }).limit(2000),
     db.from('competitor_accounts_daily').select('*').gte('date', shiftDay(today(), -90)).order('date'),
     db.from('competitor_items').select('*').or(`posted_on.gte.${shiftDay(today(), -120)},brand.ilike.%cane%`).order('posted_on', { ascending: false }).limit(200),
-    db.from('sync_log').select('status,finished_at').order('started_at', { ascending: false }).limit(1),
+    db.from('sync_log').select('status,finished_at').not('finished_at', 'is', null).order('started_at', { ascending: false }).limit(1),
     db.from('competitor_tiktok').select('*').gte('posted', shiftDay(today(), -120)).order('posted_at', { ascending: false }).limit(2000),
     db.from('competitor_tiktok_daily').select('*').gte('date', shiftDay(today(), -90)).order('date'),
   ]);
@@ -92,7 +92,7 @@ export async function loadAudience(): Promise<AudienceData> {
     db.from('account_daily').select('*').gte('date', shiftDay(today(), -30)).order('date'),
     db.from('comments').select('*').gte('post_date', shiftDay(today(), -60)).order('likes', { ascending: false }).limit(5000),
     db.from('mentions').select('*').gte('posted_on', shiftDay(today(), -60)).order('posted_on', { ascending: false }).limit(300),
-    db.from('sync_log').select('status,finished_at').order('started_at', { ascending: false }).limit(1),
+    db.from('sync_log').select('status,finished_at').not('finished_at', 'is', null).order('started_at', { ascending: false }).limit(1),
   ]);
   for (const r of [d, a, c, m, s]) if (r.error) throw new Error(r.error.message);
   return {

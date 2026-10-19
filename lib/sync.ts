@@ -19,8 +19,11 @@ const skip = <T,>(): Promise<T> => Promise.reject(new Error('__skipped__'));
  */
 export async function runSync(part: SyncPart = 'all'): Promise<SyncResult> {
   const core = part !== 'intel', intel = part !== 'core';
+  // Write a 'running' row first: if the function is killed at the 60s limit, the dashboard shows it instead of silence.
+  const startedIso = new Date().toISOString();
+  await supabaseAdmin().from('sync_log').insert({ job: 'windsor', status: 'running', started_at: startedIso, detail: { part } });
   const db = supabaseAdmin();
-  const started_at = new Date().toISOString();
+  const started_at = startedIso;
   const detail: Record<string, unknown> = {};
   const errors: string[] = [];
 
@@ -101,6 +104,6 @@ export async function runSync(part: SyncPart = 'all'): Promise<SyncResult> {
 
   const anyOk = [daysR, postsR, commentsR, mediaR, accountR, rivalsR, audR].some((r) => r.status === 'fulfilled') || part === 'intel';
   const status: SyncResult['status'] = errors.length === 0 ? 'ok' : anyOk ? 'partial' : 'error';
-  await db.from('sync_log').insert({ job: 'windsor', status, started_at, finished_at: new Date().toISOString(), detail: { ...detail, errors } });
+  await db.from('sync_log').update({ status, finished_at: new Date().toISOString(), detail: { ...detail, errors } }).eq('job', 'windsor').eq('started_at', started_at);
   return { status, ...detail, errors } as SyncResult;
 }
