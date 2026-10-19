@@ -1,5 +1,6 @@
 import 'server-only';
 import { buildAlerts } from './alerts';
+import { runApifyStep } from './apifyJobs';
 import { supabaseAdmin } from './supabase';
 import { fetchAccountDays, fetchAudience, fetchComments, fetchCompetitorSocial, fetchMedia, fetchPosts, fetchProfileDays } from './windsor';
 
@@ -76,6 +77,9 @@ export async function runSync(): Promise<SyncResult> {
       if (aerr) errors.push(`alerts: ${aerr.message}`); else detail.alerts_considered = alerts.length;
     }
   } else errors.push(`Windsor comments: ${why(commentsR)}`);
+
+  // Apify scrapes (competitor TikTok, UK trends): collect finished runs, start due ones. Never fails the sync.
+  try { detail.apify = await runApifyStep(); } catch (e) { errors.push(`Apify: ${(e as Error).message}`); }
 
   const anyOk = [daysR, postsR, commentsR, mediaR, accountR, rivalsR, audR].some((r) => r.status === 'fulfilled');
   const status: SyncResult['status'] = errors.length === 0 ? 'ok' : anyOk ? 'partial' : 'error';
