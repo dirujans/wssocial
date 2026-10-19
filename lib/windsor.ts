@@ -100,14 +100,16 @@ export async function fetchPosts(datePreset = 'last_60dT'): Promise<Post[]> {
 }
 
 export async function fetchComments(datePreset = 'last_14dT'): Promise<Comment[]> {
-  const [ig, tt] = await Promise.all([
-    windsor(
-      'instagram',
-      ['account_id', 'date', 'media_permalink', 'comment_id', 'comment_text', 'comment_like_count', 'comment_reply_count', 'comment_timestamp'],
-      { datePreset, accounts: [ACCOUNTS.instagramUK, ACCOUNTS.instagramIE] },
-    ),
+  const igFields = ['account_id', 'date', 'media_permalink', 'comment_id', 'comment_text', 'comment_like_count', 'comment_reply_count', 'comment_timestamp'];
+  const igAccounts = [ACCOUNTS.instagramUK, ACCOUNTS.instagramIE];
+  // The 14-day Instagram call stopped returning the newest days (19 Oct: launch reel had 150 comments, we got none),
+  // so a short window runs alongside it and the two are merged by comment id. A failed short call never blocks the long one.
+  const [igLong, igRecent, tt] = await Promise.all([
+    windsor('instagram', igFields, { datePreset, accounts: igAccounts }),
+    windsor('instagram', igFields, { datePreset: 'last_3dT', accounts: igAccounts }).catch(() => [] as Row[]),
     windsor('tiktok_organic', ['date', 'comment_video_id', 'comment_id', 'comment_text', 'comment_username', 'comment_likes'], { datePreset }),
   ]);
+  const ig = [...new Map([...igLong, ...igRecent].map((r) => [str(r.comment_id), r])).values()];
   const igRows: Comment[] = ig
     .filter((c) => c.comment_id && c.comment_text)
     .map((c) => ({
