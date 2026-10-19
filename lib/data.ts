@@ -1,6 +1,6 @@
 import 'server-only';
 import type { TikTokAccountDay, TikTokVideo, TrendRow } from './tiktok';
-import { fcMentions, FC_LAUNCH, isFcPost, type FcEntry } from './flavourClub';
+import { fcMentions, FC_LAUNCH, isFcPost, isFcText, type FcEntry } from './flavourClub';
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
 import type { AccountDay, Alert, AudienceDemo, CityDay, NsoCreator, NsoOpening, NsoPage, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
@@ -188,7 +188,8 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
   return {
     posts, comments: (c.data ?? []) as Comment[],
     mentions: fcMentions((me.data ?? []) as Mention[]),
-    entries: (en.data ?? []) as FcEntry[],
+    // Older loose hashtag matches stay in the table; only real entries (or ones the team already marked) show.
+    entries: ((en.data ?? []) as FcEntry[]).filter((e) => e.status || (isFcText(e.caption) && !/^(wingstopuk|wingstopie|wingstop_ie|wingstopireland|wingstop)$/i.test(e.author ?? ''))),
     marks: (mk.data ?? []) as FlavourClubData['marks'],
     loyalty: ((co.data ?? []) as CompetitorItem[]).filter((i) => /loyal|reward|app\b|points|stamp|club/i.test(`${i.title} ${i.summary ?? ''}`)),
     lastSync: (s.data?.[0] as FlavourClubData['lastSync']) ?? null,
