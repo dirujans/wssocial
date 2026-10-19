@@ -6,6 +6,7 @@ import { abortRun, runApifyStep } from '@/lib/apifyJobs';
 import { runSync } from '@/lib/sync';
 import { supabaseAdmin } from '@/lib/supabase';
 import { geocodeStores } from '@/lib/stores';
+import { syncAds } from '@/lib/adsSync';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -38,6 +39,8 @@ export async function GET(req: Request) {
   if (abort) return Response.json(await abortRun(abort));
   const sp = url.searchParams.get('sync');
   if (sp === 'core' || sp === 'intel' || sp === 'all') { const t0 = Date.now(); const r = await runSync(sp); return Response.json({ ms: Date.now() - t0, ...r }); }
+  const ads = url.searchParams.get('ads');
+  if (ads && /^last_\d+dT?$/.test(ads)) { const t0 = Date.now(); return Response.json({ ms: Date.now() - t0, ...(await syncAds(ads)), took: Date.now() - t0 }); }
   if (url.searchParams.get('geocode') === 'stores') return Response.json(await geocodeStores(Number(url.searchParams.get('max') ?? 40)));
   if (url.searchParams.get('run') === 'jobs') return Response.json(await runApifyStep());
   const which = (url.searchParams.get('only') ?? 'tiktok,instagram,trends').split(',').filter((k) => PROBES[k]);

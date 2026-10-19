@@ -2,6 +2,7 @@ import 'server-only';
 import { buildAlerts } from './alerts';
 import { runApifyStep } from './apifyJobs';
 import { geocodeStores } from './stores';
+import { syncAds } from './adsSync';
 import { supabaseAdmin } from './supabase';
 import { fetchAccountDays, fetchAudience, fetchComments, fetchCompetitorSocial, fetchMedia, fetchPosts, fetchProfileDays } from './windsor';
 
@@ -98,6 +99,8 @@ export async function runSync(part: SyncPart = 'all'): Promise<SyncResult> {
   } else errors.push(`Windsor comments: ${why(commentsR)}`);
 
   // Apify scrapes (competitor TikTok, UK trends): collect finished runs, start due ones. Never fails the sync.
+  // Paid: last 7 days of every ad (both Meta accounts and TikTok). Independent of everything else.
+  if (intel) { try { detail.ads = await syncAds(); } catch (e) { errors.push(`Ads: ${(e as Error).message}`); } }
   if (intel) { try { detail.apify = await runApifyStep(); } catch (e) { errors.push(`Apify: ${(e as Error).message}`); } }
   // New Flavour Club stores (from Bitly) get placed on the scans map; quick, capped, and never blocks the sync.
   if (intel) { try { detail.stores = await geocodeStores(10); } catch (e) { errors.push(`Store places: ${(e as Error).message}`); } }

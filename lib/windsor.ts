@@ -3,6 +3,7 @@
 // so never log full URLs: HttpError masks it.
 
 import { fetchWithRetry } from './http';
+import { mapMetaAds, mapTikTokAds, META_ACCOUNTS, TIKTOK_ACCOUNTS, type AdDay } from './paid';
 import { themeOf } from './themes';
 import { brandOf, scorePosts } from './competitors';
 import { NETWORK_TO_CHANNEL, type AccountDay, type Comment, type AudienceDemo, type CompetitorAccountDay, type CompetitorPost, type Media, type Post, type ProfileDay } from './types';
@@ -17,7 +18,7 @@ export const ACCOUNTS = {
 
 type Row = Record<string, unknown>;
 
-async function windsor(connector: string, fields: string[], opts: { datePreset?: string; accounts?: string[] }): Promise<Row[]> {
+export async function windsor(connector: string, fields: string[], opts: { datePreset?: string; accounts?: string[] }): Promise<Row[]> {
   const key = process.env.WINDSOR_API_KEY;
   if (!key) throw new Error('WINDSOR_API_KEY is not set');
   const qs = new URLSearchParams({ api_key: key, fields: fields.join(',') });
@@ -34,7 +35,7 @@ async function windsor(connector: string, fields: string[], opts: { datePreset?:
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === '' ? null : Number(v));
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
-const normLink = (u: unknown) => str(u).replace(/[?#].*$/, '').replace(/\/$/, '').toLowerCase();
+export const normLink = (u: unknown) => str(u).replace(/[?#].*$/, '').replace(/\/$/, '').toLowerCase();
 
 function formatOf(t: unknown): Post['format'] {
   const s = str(t);
@@ -318,4 +319,21 @@ export async function fetchAudience(): Promise<AudienceDemo[]> {
   const m = new Map<string, AudienceDemo>();
   out.forEach((r) => { const k = `${r.platform}|${r.dimension}|${r.key}`; const cur = m.get(k); if (!cur || (r.value ?? 0) > (cur.value ?? 0)) m.set(k, r); });
   return [...m.values()];
+}
+
+/* ---------- Paid (Meta and TikTok ad accounts) ---------- */
+
+const META_AD_FIELDS = ['date', 'account_id', 'account_name', 'campaign_id', 'campaign', 'campaign_objective', 'ad_id', 'ad_name', 'publisher_platform', 'instagram_permalink_url',
+  'spend', 'impressions', 'reach', 'clicks', 'actions_link_click', 'actions_video_view', 'video_thruplay_watched_actions_video_view',
+  'actions_post_reaction', 'actions_comment', 'actions_post', 'actions_onsite_conversion_post_save'];
+const TIKTOK_AD_FIELDS = ['date', 'account_id', 'account_name', 'campaign_id', 'campaign_name', 'objective_type', 'ad_id', 'ad_name', 'item_id', 'identity_type',
+  'spend', 'impressions', 'reach', 'clicks', 'total_play', 'organic_video_views', 'focused_view_6s', 'likes', 'comments', 'shares', 'follows', 'profile_visits'];
+
+/** Ad-level daily rows for both Meta accounts (split by placement) and the TikTok account. Zero rows dropped. */
+export async function fetchAds(datePreset = 'last_7dT'): Promise<{ meta: AdDay[]; tiktok: AdDay[] }> {
+  const [meta, tiktok] = await Promise.all([
+    windsor('facebook', META_AD_FIELDS, { datePreset, accounts: Object.keys(META_ACCOUNTS) }),
+    windsor('tiktok', TIKTOK_AD_FIELDS, { datePreset, accounts: Object.keys(TIKTOK_ACCOUNTS) }),
+  ]);
+  return { meta: mapMetaAds(meta), tiktok: mapTikTokAds(tiktok) };
 }
