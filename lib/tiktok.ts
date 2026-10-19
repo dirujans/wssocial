@@ -73,8 +73,8 @@ export function mapTrends(items: Row[], today: string): TrendRow[] {
 }
 
 /** Words that suggest a trend sits in Wingstop's territory (flavour, food, music, sport, youth culture, moments). A pointer, not a verdict. */
-const FIT = /(food|chicken|wing|spicy|spice|hot|sauce|flavour|flavor|eat|mukbang|halal|recipe|honey|music|rap|drill|grime|dj|song|dance|football|premier|match|uni|student|fresher|halloween|bonfire|christmas|gaming|gta|black ?friday|half ?term|date ?night|friday|weekend)/i;
-const FIT_INDUSTRY = /(food|beverage|restaurant|sports|music|entertainment)/i;
+const FIT = /(food|chicken|wing|spicy|spice|hot|sauce|flavour|flavor|eat|mukbang|halal|recipe|honey|music|rap|drill|grime|dj|song|dance|football|premier|champions ?league|ucl|uefa|fpl|matchday|derby|mancity|manchesterunited|manutd|arsenal|chelsea|liverpool|tottenham|spurs|uni|student|fresher|halloween|bonfire|christmas|gta|black ?friday|half ?term|date ?night|weekend)/i;
+const FIT_INDUSTRY = /(food|beverage|restaurant|sports|music|games)/i;
 export function trendFit(t: Pick<TrendRow, 'hashtag' | 'industries'>): 'ours' | 'maybe' | 'skip' {
   if (FIT.test(t.hashtag)) return 'ours';
   if (t.industries.some((i) => FIT_INDUSTRY.test(i))) return 'maybe';

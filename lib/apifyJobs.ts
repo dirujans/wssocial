@@ -8,7 +8,8 @@ import { mapTikTok, mapTrends, scoreTikTok, TIKTOK_HANDLES, type TikTokVideo } f
 const BASE = 'https://api.apify.com/v2';
 const JOBS = {
   tiktok: { actor: 'clockworks~tiktok-scraper', everyHours: 80, input: () => ({ profiles: TIKTOK_HANDLES, resultsPerPage: 12, profileScrapeSections: ['videos'], profileSorting: 'latest', excludePinnedPosts: true, shouldDownloadVideos: false, shouldDownloadCovers: false }) },
-  trends: { actor: 'data_xplorer~tiktok-trends', everyHours: 20, input: () => ({ trendType: 'hashtags', countryCode: 'GB', hashtagPeriod: '7', maxItems: 50 }) },
+  // Costs seen on the free plan: TikTok ~$0.32 a run (~$0.007 a video), trends ~$0.10 a run. ~$3.50 a month at these cadences, inside the $5 credit.
+  trends: { actor: 'data_xplorer~tiktok-trends', everyHours: 70, input: () => ({ trendType: 'hashtags', countryCode: 'GB', hashtagPeriod: '7', maxItems: 40 }) },
 } as const;
 type Kind = keyof typeof JOBS;
 
