@@ -28,7 +28,10 @@ export interface Topline {
   note?: string;
 }
 
-export function socialToplines(rows: AccountDay[], media: Media[], period: Period, channel: ChannelFilter): { toplines: Topline[]; from: string; to: string } | null {
+/** Rewrites one platform-day value, e.g. to take paid views out (organic) or keep only them (paid). Identity when absent. */
+export type ToplineAdjust = (metric: SocialMetric, platform: AccountDay['platform'], day: string, value: number) => number;
+
+export function socialToplines(rows: AccountDay[], media: Media[], period: Period, channel: ChannelFilter, adjust?: ToplineAdjust): { toplines: Topline[]; from: string; to: string } | null {
   const last = lastSocialDay(rows);
   const plats = platformsFor(channel);
   if (!last || !plats) return null;
@@ -37,8 +40,9 @@ export function socialToplines(rows: AccountDay[], media: Media[], period: Perio
   const scoped = rows.filter((r) => plats.includes(r.platform));
   const ttMedia = media.filter((m) => m.platform === 'TikTok' && plats.includes('TikTok'));
 
+  const adj = (m: SocialMetric, r: AccountDay) => { const v = r[m] ?? 0; return adjust ? adjust(m, r.platform, r.date, v) : v; };
   const daily = (m: SocialMetric, day: string) => {
-    let v = scoped.filter((r) => r.date === day).reduce((s, r) => s + (r[m === 'follows' ? 'follows' : m] ?? 0), 0);
+    let v = scoped.filter((r) => r.date === day).reduce((s, r) => s + adj(m, r), 0);
     // TikTok gives saves per video, not per day: count them on the day the video went out.
     if (m === 'saves') v += ttMedia.filter((x) => x.posted === day).reduce((s, x) => s + (x.saves ?? 0), 0);
     return v;
@@ -55,7 +59,7 @@ export function socialToplines(rows: AccountDay[], media: Media[], period: Perio
     for (let d = from; d <= last; d = shiftDay(d, 1)) series.push({ date: d, value: daily(m, d) });
     const byPlatform = plats.map((p) => ({
       platform: p,
-      value: scoped.filter((r) => r.platform === p && inRange(r.date, from, last)).reduce((s, r) => s + (r[m] ?? 0), 0)
+      value: scoped.filter((r) => r.platform === p && inRange(r.date, from, last)).reduce((s, r) => s + adj(m, r), 0)
         + (m === 'saves' && p === 'TikTok' ? ttMedia.filter((x) => inRange(x.posted, from, last)).reduce((s, x) => s + (x.saves ?? 0), 0) : 0),
     })).filter((x) => x.value > 0);
     const t: Topline = { metric: m, current, previous, change: previous ? current / previous - 1 : null, series, byPlatform };

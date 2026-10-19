@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import type { DashboardData } from '@/lib/data';
 import { headlines, lastCompleteDay, takeaway, windowFor, type ChannelFilter, type Period } from '@/lib/metrics';
-import { socialToplines } from '@/lib/social';
+import { socialToplines, type ToplineAdjust } from '@/lib/social';
+import { igPaidModel, splitViews, type Split } from '@/lib/paid';
 import { CHANNELS } from '@/lib/types';
 import AlertsList from './AlertsList';
 import ChannelTable from './ChannelTable';
@@ -27,7 +28,24 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
   const last = useMemo(() => lastCompleteDay(data.days), [data.days]);
   const win = useMemo(() => (last ? windowFor(last, period) : null), [last, period]);
   const heads = useMemo(() => (win ? headlines(data.days, win, channel) : []), [data.days, win, channel]);
-  const social = useMemo(() => socialToplines(data.accountDays, data.media, period, channel), [data.accountDays, data.media, period, channel]);
+  // Organic / paid / combined: paid from the ad accounts, Instagram's share learnt from history (lib/paid igPaidModel).
+  const [split, setSplit] = useState<Split>('organic');
+  const paidMap = useMemo(() => new Map(data.adsByDay.map((r) => [r.day, { igImpressions: r.ig_impressions, igSpend: r.ig_spend, ttSparkPlays: r.tt_spark_plays, ttPlays: r.tt_plays, ttFollows: r.tt_follows, ttSpend: r.tt_spend, spend: r.spend }])), [data.adsByDay]);
+  const igModel = useMemo(() => igPaidModel(new Map(data.accountDays.filter((r) => r.platform === 'Instagram').map((r) => [r.date, r.views ?? 0])), paidMap), [data.accountDays, paidMap]);
+  const adjust = useMemo<ToplineAdjust>(() => (m, platform, day, v) => {
+    if (m === 'views') {
+      if (platform === 'Instagram IE') return split === 'paid' ? 0 : v;
+      const sv = splitViews(day, platform, v, paidMap, igModel.k);
+      return sv[split];
+    }
+    if (m === 'follows') {
+      if (platform !== 'TikTok') return split === 'paid' ? 0 : v; // Meta gives no Instagram follows from ads
+      const pf = paidMap.get(day)?.ttFollows ?? 0;
+      return split === 'paid' ? pf : split === 'organic' ? Math.max(0, v - pf) : v;
+    }
+    return v;
+  }, [split, paidMap, igModel.k]);
+  const social = useMemo(() => socialToplines(data.accountDays, data.media, period, channel, adjust), [data.accountDays, data.media, period, channel, adjust]);
   const toggleChannel = (c: ChannelFilter) => setChannel((cur) => (cur === c ? 'All' : c));
 
   if (!last || !win) {
@@ -71,13 +89,16 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
           <div className="seg" role="group" aria-label="Channel">
             {(['All', ...CHANNELS] as ChannelFilter[]).map((c) => <button key={c} type="button" aria-pressed={channel === c} onClick={() => setChannel(c)}>{c}</button>)}
           </div>
+          <div className="seg" role="group" aria-label="Organic or paid" title="Switches Views and New follows. Shares, saves and reposts are as the platforms report them.">
+            {([['organic', 'Organic'], ['paid', 'Paid'], ['combined', 'Combined']] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={split === k} onClick={() => setSplit(k)}>{l}</button>)}
+          </div>
           <span style={{ marginLeft: 'auto' }}><SyncButton /></span>
         </div>
       </nav>
 
       {data.alerts.length > 0 && <section className="band" style={{ paddingTop: 18, paddingBottom: 18 }}><div className="inner"><AlertsList alerts={data.alerts} /></div></section>}
 
-      <Toplines social={social?.toplines ?? null} from={social?.from ?? null} to={social?.to ?? null} period={period} heads={heads}
+      <Toplines social={social?.toplines ?? null} from={social?.from ?? null} to={social?.to ?? null} period={period} heads={heads} split={split} igK={igModel.k}
         scopeNote={channel === 'All' ? null : channel === 'Instagram' || channel === 'TikTok' ? `${channel} only.` : `${channel} has no shares, saves or reposts feed; the bottom row covers it.`} />
       <PostWall media={data.media} comments={data.comments} from={postsFrom} channel={channel} />
       <CommentsArena comments={data.comments} posts={data.posts} media={data.media} channel={channel} />

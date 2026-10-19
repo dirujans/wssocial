@@ -4,6 +4,7 @@ import { fcMentions, FC_LAUNCH, isFcPost, isFcText, type FcEntry, type FcLinkDay
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
 import type { AccountDay, Alert, AudienceDemo, CityDay, NsoCreator, NsoOpening, NsoPage, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
+import type { AdDay, PostLike } from './paid';
 
 export interface DashboardData {
   days: ProfileDay[];
@@ -14,6 +15,7 @@ export interface DashboardData {
   alerts: (Alert & { created_at: string })[];
   competitors: CompetitorItem[];
   mentions: Mention[];
+  adsByDay: AdsByDay[];
   lastSync: { status: string; finished_at: string } | null;
 }
 
@@ -21,7 +23,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export async function loadDashboard(): Promise<DashboardData> {
   const db = supabaseAdmin();
-  const [d, p, m, a, c, al, co, me, s] = await Promise.all([
+  const [d, p, m, a, c, al, co, me, s, ab] = await Promise.all([
     db.from('profile_daily').select('date,channel,impressions,engagements,followers,posts_sent').gte('date', shiftDay(today(), -125)).order('date'),
     db.from('posts').select('*').gte('posted', shiftDay(today(), -125)),
     db.from('media').select('*').gte('posted', shiftDay(today(), -125)).order('posted_at', { ascending: false }),
@@ -31,8 +33,9 @@ export async function loadDashboard(): Promise<DashboardData> {
     db.from('competitor_items').select('*').gte('posted_on', shiftDay(today(), -30)).order('posted_on', { ascending: false }).limit(40),
     db.from('mentions').select('*').eq('done', false).gte('posted_on', shiftDay(today(), -30)).order('posted_on', { ascending: false }).limit(60),
     db.from('sync_log').select('status,finished_at').not('finished_at', 'is', null).order('started_at', { ascending: false }).limit(1),
+    db.from('ads_by_day').select('*').gte('day', shiftDay(today(), -125)).order('day'),
   ]);
-  for (const r of [d, p, m, a, c, al, co, me, s]) if (r.error) throw new Error(r.error.message);
+  for (const r of [d, p, m, a, c, al, co, me, s, ab]) if (r.error) throw new Error(r.error.message);
   return {
     days: (d.data ?? []) as ProfileDay[],
     posts: (p.data ?? []) as Post[],
@@ -42,6 +45,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     alerts: (al.data ?? []) as DashboardData['alerts'],
     competitors: (co.data ?? []) as CompetitorItem[],
     mentions: (me.data ?? []) as Mention[],
+    adsByDay: ((ab.data ?? []) as AdsByDay[]).map((r) => ({ ...r, ig_spend: Number(r.ig_spend), tt_spend: Number(r.tt_spend), spend: Number(r.spend), ig_impressions: Number(r.ig_impressions), tt_spark_plays: Number(r.tt_spark_plays), tt_plays: Number(r.tt_plays), tt_follows: Number(r.tt_follows) })),
     lastSync: (s.data?.[0] as DashboardData['lastSync']) ?? null,
   };
 }
@@ -201,3 +205,45 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
     lastSync: (s.data?.[0] as FlavourClubData['lastSync']) ?? null,
   };
 }
+
+/* ---------- Paid ---------- */
+
+export interface PaidData {
+  ads: AdDay[];
+  posts: PostLike[];
+  accountDays: AccountDay[];
+  lastSync: { status: string; finished_at: string } | null;
+}
+
+/** Supabase returns at most 1,000 rows a request, so page through. */
+async function pageAll<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>, max = 60000): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < max; from += 1000) {
+    const { data, error } = await fetchPage(from, from + 999);
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+export async function loadPaid(): Promise<PaidData> {
+  const db = supabaseAdmin();
+  const since = shiftDay(today(), -125);
+  const cols = 'day,platform,placement,ad_id,account_id,account_name,agency,campaign_id,campaign,objective,ad_name,post_key,post_link,spark,spend,impressions,reach,clicks,link_clicks,video_views,thruplays,likes,comments,shares,saves,follows,profile_visits,organic_views';
+  const [ads, m, a, s] = await Promise.all([
+    pageAll<AdDay>((f, t) => db.from('ads_daily').select(cols).gte('day', since).order('day').order('ad_id').order('placement').range(f, t)),
+    db.from('media').select('comment_key,platform,posted,views,likes,comments,shares,saves,caption,permalink,thumb_url,kind').gte('posted', shiftDay(today(), -160)),
+    db.from('account_daily').select('*').gte('date', since).order('date'),
+    db.from('sync_log').select('status,finished_at').not('finished_at', 'is', null).order('started_at', { ascending: false }).limit(1),
+  ]);
+  for (const r of [m, a, s]) if (r.error) throw new Error(r.error.message);
+  return {
+    ads: ads.map((r) => ({ ...r, spend: Number(r.spend) })),
+    posts: (m.data ?? []) as PostLike[],
+    accountDays: (a.data ?? []) as AccountDay[],
+    lastSync: (s.data?.[0] as PaidData['lastSync']) ?? null,
+  };
+}
+
+export interface AdsByDay { day: string; ig_impressions: number; ig_spend: number; tt_spark_plays: number; tt_plays: number; tt_follows: number; tt_spend: number; spend: number }

@@ -18,9 +18,10 @@ function Delta({ v, pts }: { v: number | null | undefined; pts?: boolean }) {
   return <span className={`delta ${v >= 0 ? 'up' : 'down'}`}>{v >= 0 ? '▲' : '▼'} {(pts ? signedPts(v) : signedPct(v)).replace(/^[+−]/, '')}</span>;
 }
 
-export default function Toplines({ social, from, to, period, heads, scopeNote }: {
-  social: Topline[] | null; from: string | null; to: string | null; period: number; heads: Headline[]; scopeNote: string | null;
+export default function Toplines({ social, from, to, period, heads, scopeNote, split = 'combined', igK = null }: {
+  social: Topline[] | null; from: string | null; to: string | null; period: number; heads: Headline[]; scopeNote: string | null; split?: 'organic' | 'paid' | 'combined'; igK?: number | null;
 }) {
+  const splitLabel = split === 'organic' ? 'organic' : split === 'paid' ? 'paid' : 'organic + paid';
   const t = (m: string) => social?.find((x) => x.metric === m);
   const h = (m: string) => heads.find((x) => x.metric === m);
   const big = ['shares', 'saves', 'reposts'];
@@ -62,14 +63,16 @@ export default function Toplines({ social, from, to, period, heads, scopeNote }:
 
         <div className="small4">
           <div className="mini rise">
-            <span className="eyebrow">Views · IG + TikTok</span>
+            <span className="eyebrow">Views · IG + TikTok · {splitLabel}</span>
             <div className="value">{social ? <CountUp value={t('views')?.current} format={(n) => compact(Math.round(n))} /> : '—'}</div>
             <div className="meta">{social && <Delta v={t('views')?.change} />}</div>
+            <p className="why-note" style={{ marginTop: 6 }}>{split === 'combined' ? 'Everything, including ads.' : `TikTok Spark plays${igK != null ? ' and Instagram ad views' : ''} ${split === 'organic' ? 'taken out' : 'only'}.`}{split !== 'combined' && igK != null ? ` Instagram ads add about ${igK.toFixed(2)} account views per impression, learnt from our history.` : ''}</p>
           </div>
           <div className="mini rise d1">
-            <span className="eyebrow">New follows · IG + TikTok</span>
+            <span className="eyebrow">New follows · IG + TikTok · {splitLabel}</span>
             <div className="value">{social ? <CountUp value={t('follows')?.current} format={(n) => signedInt(Math.round(n))} /> : '—'}</div>
             <div className="meta">{social && <Delta v={t('follows')?.change} />}</div>
+            {split !== 'combined' && <p className="why-note" style={{ marginTop: 6 }}>TikTok paid follows from the ad account. Instagram can&apos;t be split: Meta doesn&apos;t report follows from ads.</p>}
           </div>
           <div className="mini rise d2">
             <span className="eyebrow">Engagement rate · all channels</span>
