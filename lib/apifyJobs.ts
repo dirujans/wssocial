@@ -37,7 +37,9 @@ export async function runApifyStep(): Promise<Record<string, unknown>> {
   if (!process.env.APIFY_TOKEN) return { skipped: 'APIFY_TOKEN not set' };
   const db = supabaseAdmin(); const out: Record<string, unknown> = {};
   // 1. Collect finished runs.
-  const { data: open } = await db.from('apify_runs').select('*').is('ingested_at', null).order('started_at');
+  const { data: open, error: oerr } = await db.from('apify_runs').select('*').is('ingested_at', null).order('started_at');
+  if (oerr) out.collect_error = oerr.message;
+  out.open_runs = (open ?? []).length;
   for (const r of open ?? []) {
     try {
       const res = await fetch(`${BASE}/actor-runs/${r.run_id}`, { headers: auth(), cache: 'no-store' });
