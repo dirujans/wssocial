@@ -35,12 +35,13 @@ Read this first in any new session. It is the handover: what exists, where it li
 - `instagram` UK 17841403911240491 and IE 17841477228197665: media, saves, shares, reposts, comments, demographics. follower_count only covers 30 days.
 - `tiktok_organic`: videos, comments, demographics. Account data 60 days; latest days come back as zeros.
 - `instagram_public` (competitors, by handle, added in Windsor): wingstopuk, kfc_uki, nandosuk, mcdonaldsuk, popeyesuk, daveshotchickenuk; raisingcanes_uk and slimchickensuk added but not returning data yet. Only likes and comments for other accounts (no views, shares, saves). Popeyes appears to hide likes.
-- Cron syncs at 02:45 and 05:30 UTC (`vercel.json`), plus the Sync now button.
+- Crons (`vercel.json`, Hobby so timing is within the hour): `/api/sync?part=core` 02:45 and 05:30 UTC (Sprout, our IG and TikTok, comments, alerts; ~45s), `?part=intel` 03:05 and 05:50 (competitors, audience, Apify; ~10s). Each sync writes a 'running' row to `sync_log` first, so a run killed at the 60s limit shows up. Sync now runs both halves. Crons silently failed 17 to 19 Oct (whole sync near 60s and/or secret mismatch); fixed 19 Oct.
+- Supabase client forces `cache: 'no-store'`: Next's fetch cache otherwise served stale reads inside route handlers.
 
 ## Apify (free plan, $5 a month credit; APIFY_TOKEN in Vercel)
 - Driven by the sync (`lib/apifyJobs.ts`): each sync collects finished runs, then starts due ones. Runs logged in `apify_runs` (cost in `usd`).
-- `clockworks/tiktok-scraper` every ~80h: latest 12 videos for `TIKTOK_HANDLES` in `lib/tiktok.ts` (wingstopuk, kfc_uki, nandosuk, mcdonaldsuk, popeyesuk, daveshotchickenuk, raisingcanes, raisingcanes_uk). Gives plays, likes, comments, shares, saves. About $0.004 per video. Note: TikTok "kfcuki" is an unrelated fan account; KFC is kfc_uki. Slim Chickens has no UK TikTok we could find. raisingcanes_uk is unverified.
-- `data_xplorer/tiktok-trends` daily: top 50 UK hashtags, 7 days. Pennies. TikTok no longer exposes the UK sounds chart to these tools.
+- `clockworks/tiktok-scraper` every ~80h: latest 12 videos for `TIKTOK_HANDLES` in `lib/tiktok.ts` (wingstopuk, kfc_uki, nandosuk, mcdonaldsuk, popeyesuk, daveshotchickenuk, raisingcanes, raisingcanes_uk). Gives plays, likes, comments, shares, saves. About $0.32 a run (~$0.007 a video). Note: TikTok "kfcuki" is an unrelated fan account; KFC is kfc_uki. Slim Chickens has no UK TikTok we could find. raisingcanes_uk is unverified.
+- `data_xplorer/tiktok-trends` every ~3 days: top 40 UK hashtags, 7 days. ~$0.10 a run. Together about $3.50 a month. TikTok no longer exposes the UK sounds chart to these tools.
 - `/api/apify/probe` is a test route guarded by a short-lived key in `ops_keys` (insert one with an expiry; never commit it). `?only=tiktok&input=<json>` tests an actor, `?run=jobs` runs the step, `?abort=<runId>` stops a run.
 - `apify/instagram-scraper` was too slow to start inside the 60s limit; not used.
 
