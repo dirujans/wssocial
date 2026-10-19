@@ -69,3 +69,20 @@ test('packAds round-trips and merges non-Instagram Meta placements', async () =>
   assert.equal(paidByDay(back).get('2026-10-01')!.igImpressions, 1000);
   assert.equal(back.find((r) => r.placement === 'other')!.video_views, 20);
 });
+
+test('splitAdjust: shares and saves follow the switch', async () => {
+  const { splitAdjust, emptyPaidDay } = await import('../lib/paid');
+  const paid = new Map([['2026-10-01', { ...emptyPaidDay(), igShares: 40, igSaves: 10, ttSparkShares: 30, ttShares: 30, ttFollows: 5 }]]);
+  const f = (sp: 'organic' | 'paid' | 'combined') => splitAdjust(sp, paid, null);
+  assert.equal(f('organic')('shares', 'Instagram', '2026-10-01', 200), 200);
+  assert.equal(f('paid')('shares', 'Instagram', '2026-10-01', 200), 40);
+  assert.equal(f('combined')('shares', 'Instagram', '2026-10-01', 200), 240);
+  assert.equal(f('organic')('shares', 'TikTok', '2026-10-01', 500), 470);
+  assert.equal(f('paid')('shares', 'TikTok', '2026-10-01', 500), 30);
+  assert.equal(f('combined')('shares', 'TikTok', '2026-10-01', 500), 500);
+  assert.equal(f('paid')('saves', 'Instagram', '2026-10-01', 50), 10);
+  assert.equal(f('paid')('reposts', 'Instagram', '2026-10-01', 9), 0);
+  assert.equal(f('organic')('reposts', 'Instagram', '2026-10-01', 9), 9);
+  assert.equal(f('paid')('shares', 'Instagram IE', '2026-10-01', 9), 0);
+  assert.equal(f('organic')('follows', 'TikTok', '2026-10-01', 20), 15);
+});

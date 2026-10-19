@@ -110,13 +110,19 @@ export function campaigns(rows: AdDay[]): CampaignRow[] {
 }
 
 /** Paid per platform per day, Instagram placement only for Meta (Facebook placements never touch Instagram numbers). */
-export function paidByDay(rows: AdDay[]): Map<string, { igImpressions: number; igSpend: number; ttSparkPlays: number; ttPlays: number; ttFollows: number; ttSpend: number; spend: number }> {
-  const out = new Map<string, { igImpressions: number; igSpend: number; ttSparkPlays: number; ttPlays: number; ttFollows: number; ttSpend: number; spend: number }>();
+export interface PaidDay { igImpressions: number; igSpend: number; igShares: number; igSaves: number; ttSparkPlays: number; ttPlays: number; ttSparkShares: number; ttShares: number; ttFollows: number; ttSpend: number; spend: number }
+export const emptyPaidDay = (): PaidDay => ({ igImpressions: 0, igSpend: 0, igShares: 0, igSaves: 0, ttSparkPlays: 0, ttPlays: 0, ttSparkShares: 0, ttShares: 0, ttFollows: 0, ttSpend: 0, spend: 0 });
+export function paidByDay(rows: AdDay[]): Map<string, PaidDay> {
+  const out = new Map<string, PaidDay>();
   for (const r of rows) {
-    const d = out.get(r.day) ?? { igImpressions: 0, igSpend: 0, ttSparkPlays: 0, ttPlays: 0, ttFollows: 0, ttSpend: 0, spend: 0 };
+    const d = out.get(r.day) ?? emptyPaidDay();
     d.spend += r.spend;
-    if (r.platform === 'Meta' && r.placement === 'instagram') { d.igImpressions += r.impressions; d.igSpend += r.spend; }
-    if (r.platform === 'TikTok') { d.ttPlays += r.video_views ?? 0; if (r.spark) d.ttSparkPlays += r.video_views ?? 0; d.ttFollows += r.follows ?? 0; d.ttSpend += r.spend; }
+    if (r.platform === 'Meta' && r.placement === 'instagram') { d.igImpressions += r.impressions; d.igSpend += r.spend; d.igShares += r.shares ?? 0; d.igSaves += r.saves ?? 0; }
+    if (r.platform === 'TikTok') {
+      d.ttPlays += r.video_views ?? 0; d.ttShares += r.shares ?? 0;
+      if (r.spark) { d.ttSparkPlays += r.video_views ?? 0; d.ttSparkShares += r.shares ?? 0; }
+      d.ttFollows += r.follows ?? 0; d.ttSpend += r.spend;
+    }
     out.set(r.day, d);
   }
   return out;
@@ -192,7 +198,7 @@ export function igPaidModel(accountViews: Map<string, number>, paid: ReturnType<
  * otherwise account views are organic and ad impressions are added on top.
  * TikTok: account plays include Spark plays; non-Spark ads run outside the account and are added on top.
  */
-export function splitViews(day: string, platform: 'Instagram' | 'TikTok', accountViews: number, paid: ReturnType<typeof paidByDay>, igK: number | null) {
+export function splitViews(day: string, platform: 'Instagram' | 'TikTok', accountViews: number, paid: Map<string, PaidDay>, igK: number | null) {
   const p = paid.get(day);
   if (platform === 'Instagram') {
     const ads = p?.igImpressions ?? 0;
@@ -202,6 +208,37 @@ export function splitViews(day: string, platform: 'Instagram' | 'TikTok', accoun
   const spark = p?.ttSparkPlays ?? 0, other = (p?.ttPlays ?? 0) - spark;
   const inside = Math.min(accountViews, spark);
   return { organic: accountViews - inside, paid: inside + other, combined: accountViews + other };
+}
+
+/**
+ * Rewrites one platform-day account figure for the Organic | Paid | Combined switch.
+ * - Views: splitViews (Instagram account views include ads; TikTok plays include Spark plays).
+ * - Shares and saves on Instagram: the account figures don't move with ad shares or saves (checked 20 Oct 2026: correlation
+ *   about 0 over 60 days), so they are organic; paid comes from the ad account and is added for combined.
+ * - Shares on TikTok: Spark Ad engagement lands on the original post, so Spark shares are inside the account figure and taken out.
+ * - Follows: TikTok paid follows from the ad account; Meta reports none, so Instagram follows stay as they are (paid shows 0).
+ * - Reposts: no platform reports paid reposts, so all are organic.
+ * Instagram IE has no ads of its own (both Meta ad accounts run the UK account).
+ */
+export function splitAdjust(split: Split, paid: Map<string, PaidDay>, igK: number | null) {
+  return (metric: 'shares' | 'saves' | 'reposts' | 'views' | 'follows', platform: string, day: string, v: number): number => {
+    if (split === 'combined' && metric !== 'views' && metric !== 'shares' && metric !== 'saves') return v;
+    const p = paid.get(day) ?? emptyPaidDay();
+    const pick = (organic: number, paidPart: number, combined: number) => (split === 'organic' ? organic : split === 'paid' ? paidPart : combined);
+    if (platform === 'Instagram IE') return split === 'paid' ? 0 : v;
+    if (metric === 'views') return (platform === 'Instagram' || platform === 'TikTok') ? splitViews(day, platform, v, paid, igK)[split] : pick(v, 0, v);
+    if (platform === 'Instagram') {
+      if (metric === 'shares') return pick(v, p.igShares, v + p.igShares);
+      if (metric === 'saves') return pick(v, p.igSaves, v + p.igSaves);
+      return pick(v, 0, v);
+    }
+    if (platform === 'TikTok') {
+      if (metric === 'shares') { const inside = Math.min(v, p.ttSparkShares), other = p.ttShares - p.ttSparkShares; return pick(v - inside, inside + other, v + other); }
+      if (metric === 'follows') return pick(Math.max(0, v - p.ttFollows), p.ttFollows, v);
+      return pick(v, 0, v);
+    }
+    return pick(v, 0, v);
+  };
 }
 
 /* ---------- Spikes ---------- */

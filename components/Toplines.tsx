@@ -13,6 +13,12 @@ const WHY: Record<string, string> = {
   reposts: 'People putting it on their own profile. The highest form of endorsement.',
 };
 
+const SPLIT_NOTE: Record<string, Partial<Record<'organic' | 'paid' | 'combined', string>>> = {
+  shares: { organic: 'Instagram account shares are organic already; TikTok Spark Ad shares taken out.', paid: 'Shares on the ads themselves: Instagram ads and TikTok Spark Ads.', combined: 'Organic plus shares on Instagram ads.' },
+  saves: { organic: 'TikTok video saves include any Spark Ad saves: TikTok does not split them.', paid: 'Saves on Instagram ads. TikTok does not report saves for ads.', combined: 'Organic plus saves on Instagram ads.' },
+  reposts: { paid: 'No platform reports reposts from ads.' },
+};
+
 function Delta({ v, pts }: { v: number | null | undefined; pts?: boolean }) {
   if (v == null) return <span className="delta">New</span>;
   return <span className={`delta ${v >= 0 ? 'up' : 'down'}`}>{v >= 0 ? '▲' : '▼'} {(pts ? signedPts(v) : signedPct(v)).replace(/^[+−]/, '')}</span>;
@@ -43,7 +49,7 @@ export default function Toplines({ social, from, to, period, heads, scopeNote, s
               return (
                 <article key={m} className={`big-card rise d${i + 1} ${i === 0 ? 'lead' : ''}`}>
                   <div className="row" style={{ alignItems: 'center' }}>
-                    <span className="label">{LABEL[m]}</span>
+                    <span className="label">{LABEL[m]} <span style={{ opacity: .6, fontWeight: 500 }}>· {splitLabel}</span></span>
                     <Delta v={x?.change} />
                   </div>
                   <div className="value"><CountUp value={x?.current} format={(n) => compact(Math.round(n))} /></div>
@@ -51,7 +57,7 @@ export default function Toplines({ social, from, to, period, heads, scopeNote, s
                     <span className={i === 0 ? '' : 'muted'}>vs {compact(x?.previous)} before</span>
                     <span className="split">{x?.byPlatform.map((p) => <span key={p.platform}>{p.platform} {compact(p.value)}</span>)}</span>
                   </div>
-                  <p className="why-note">{WHY[m]}{x?.note ? ` ${x.note}.` : ''}</p>
+                  <p className="why-note">{WHY[m]}{x?.note ? ` ${x.note}.` : ''}{SPLIT_NOTE[m]?.[split] ? ` ${SPLIT_NOTE[m][split]}` : ''}</p>
                   <div className="spark"><Sparkline values={x?.series.map((s) => s.value) ?? []} colour={i === 0 ? '#000' : 'var(--opal)'} /></div>
                 </article>
               );

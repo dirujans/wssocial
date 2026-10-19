@@ -25,13 +25,13 @@ Read this first in any new session. It is the handover: what exists, where it li
   - `/paid` (Social) Paid: spend by agency, organic/paid/combined views per platform, agency head to head (same platform, same period), did paid help the post (boosts and Spark Ads against unboosted peers), spikes explained (paid, organic or both), campaigns, best ads. `/social` toplines have an Organic | Paid | Combined switch (default Organic) on views and follows.
 - Repo: github.com/dirujans/wssocial (main deploys to Vercel automatically)
 - Vercel project `prj_JPOuJzW1RWATKyA0aM4ZdcsnJbNL` (Hobby). GitHub pushes sometimes reach Vercel late; trigger a deploy from the Vercel connector if needed (forceNew after env changes, since NEXT_PUBLIC_ vars are baked in at build).
-- Supabase project `ycttedwwcsjakieisnkb`. Migrations in `supabase/migrations/` (0001 to 0011), all applied.
+- Supabase project `ycttedwwcsjakieisnkb`. Migrations in `supabase/migrations/` (0001 to 0012), all applied.
 
 ## Stack and code map
 - Next.js 14 App Router, Recharts, Supabase (service role, server only), HMAC cookie sign-in (`lib/auth.ts`).
 - Brand: black and white lead, Opal #00A78A, flavour colours as accents. Logos in `public/brand` via `components/Brand.tsx`: Wingstop (white outline SVG, from Diri's vector) leads the top bar, chooser and sign-in; the Flavour Club lock-up replaces it on the Flavour Club area only; LPH (Lemon Pepper Holdings) is subtle: top right of the bar (hidden on phones) and every footer. Archivo (wdth axis) stands in for Roc Grotesk until font files arrive.
 - `lib/windsor.ts` all Windsor fetchers; `lib/sync.ts` runs them in parallel and upserts (one failing source never blocks the rest; every run logged to `sync_log`).
-- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`, `lib/paid.ts`. Tests: `npm test` (41 passing). Types: `npm run typecheck`.
+- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`, `lib/paid.ts`. Tests: `npm test` (42 passing). Types: `npm run typecheck`.
 - Loaders in `lib/data.ts`; one client component per page in `components/`.
 - Local builds in the Claude workspace: Google Fonts is blocked, so stub `next/font` in `app/layout.tsx` for the build and restore it after (check `grep next/font app/layout.tsx`).
 
@@ -51,6 +51,7 @@ Read this first in any new session. It is the handover: what exists, where it li
 - Table `ads_daily` (day, platform, ad_id, placement), view `ads_by_day` (security_invoker). `lib/adsSync.ts` upserts the last 7 days in the intel sync. `loadPaid` sends ads to the page packed (`packAds`/`unpackAds`: ad details once, rows as arrays, non-Instagram Meta placements merged) because raw rows were ~7 MB. Backfilled 17 Jun to 20 Oct 2026; 90-day spend checked against Windsor to within £20 per account.
 - Instagram post-level views and likes are organic only (Meta docs). Instagram account-level daily views include ad views: verified 20 Oct, they track IG ad impressions almost one for one. `igPaidModel` fits account views against IG ad impressions (k capped at 1, needs 21+ days, 10+ ad days, correlation 0.6+) and takes paid out; with no fit, ads are added on top.
 - TikTok account plays include Spark Ad plays (every TikTok ad so far is Spark), so organic = plays minus Spark plays. TikTok paid follows come from the ad account; Meta reports no Instagram follows from ads, so Instagram follows can't be split.
+- The Social switch covers every topline (`splitAdjust` in `lib/paid.ts`). Instagram account shares and saves don't move with ad shares or saves (checked 20 Oct: correlation about 0 over 60 days), so they are treated as organic and ad shares/saves are added for combined. TikTok Spark shares sit inside the account figure and are taken out. TikTok saves come per video with no paid split (left out of Paid). No platform reports reposts from ads. The Social hero reads organic first, then paid on top (spend, views, shares, saves); the Sprout sentence is labelled as all channels, paid included.
 
 ## Bitly (connected natively as a Claude connector, group Bp18hXuDgTN)
 - No Windsor connector for Bitly. The app has no Bitly token; `fc_link_days` is filled by the scheduled task below using the Bitly connector's export (link_engagements_timeseries, filter destination flavourclub.co.uk).

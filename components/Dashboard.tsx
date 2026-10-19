@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import type { DashboardData } from '@/lib/data';
 import { headlines, lastCompleteDay, takeaway, windowFor, type ChannelFilter, type Period } from '@/lib/metrics';
 import { socialToplines, type ToplineAdjust } from '@/lib/social';
-import { igPaidModel, splitViews, type Split } from '@/lib/paid';
+import { igPaidModel, splitAdjust, type PaidDay, type Split } from '@/lib/paid';
 import { CHANNELS } from '@/lib/types';
 import AlertsList from './AlertsList';
 import ChannelTable from './ChannelTable';
@@ -17,7 +17,7 @@ import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
 import Toplines from './Toplines';
 import WeeklyOutput from './WeeklyOutput';
-import { signedPct } from './format';
+import { compact, signedPct } from './format';
 import { LphFooter } from './Brand';
 
 export default function Dashboard({ data, today }: { data: DashboardData; today: string }) {
@@ -30,22 +30,13 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
   const heads = useMemo(() => (win ? headlines(data.days, win, channel) : []), [data.days, win, channel]);
   // Organic / paid / combined: paid from the ad accounts, Instagram's share learnt from history (lib/paid igPaidModel).
   const [split, setSplit] = useState<Split>('organic');
-  const paidMap = useMemo(() => new Map(data.adsByDay.map((r) => [r.day, { igImpressions: r.ig_impressions, igSpend: r.ig_spend, ttSparkPlays: r.tt_spark_plays, ttPlays: r.tt_plays, ttFollows: r.tt_follows, ttSpend: r.tt_spend, spend: r.spend }])), [data.adsByDay]);
+  const paidMap = useMemo(() => new Map<string, PaidDay>(data.adsByDay.map((r) => [r.day, { igImpressions: r.ig_impressions, igSpend: r.ig_spend, igShares: r.ig_shares, igSaves: r.ig_saves, ttSparkPlays: r.tt_spark_plays, ttPlays: r.tt_plays, ttSparkShares: r.tt_spark_shares, ttShares: r.tt_shares, ttFollows: r.tt_follows, ttSpend: r.tt_spend, spend: r.spend }])), [data.adsByDay]);
   const igModel = useMemo(() => igPaidModel(new Map(data.accountDays.filter((r) => r.platform === 'Instagram').map((r) => [r.date, r.views ?? 0])), paidMap), [data.accountDays, paidMap]);
-  const adjust = useMemo<ToplineAdjust>(() => (m, platform, day, v) => {
-    if (m === 'views') {
-      if (platform === 'Instagram IE') return split === 'paid' ? 0 : v;
-      const sv = splitViews(day, platform, v, paidMap, igModel.k);
-      return sv[split];
-    }
-    if (m === 'follows') {
-      if (platform !== 'TikTok') return split === 'paid' ? 0 : v; // Meta gives no Instagram follows from ads
-      const pf = paidMap.get(day)?.ttFollows ?? 0;
-      return split === 'paid' ? pf : split === 'organic' ? Math.max(0, v - pf) : v;
-    }
-    return v;
-  }, [split, paidMap, igModel.k]);
-  const social = useMemo(() => socialToplines(data.accountDays, data.media, period, channel, adjust), [data.accountDays, data.media, period, channel, adjust]);
+  const splits = useMemo(() => {
+    const run = (sp: Split) => socialToplines(data.accountDays, data.media, period, channel, splitAdjust(sp, paidMap, igModel.k) as ToplineAdjust, { tiktokVideoSaves: sp !== 'paid' });
+    return { organic: run('organic'), paid: run('paid'), combined: run('combined') };
+  }, [data.accountDays, data.media, period, channel, paidMap, igModel.k]);
+  const social = splits[split];
   const toggleChannel = (c: ChannelFilter) => setChannel((cur) => (cur === c ? 'All' : c));
 
   if (!last || !win) {
@@ -57,7 +48,6 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
     );
   }
 
-  const st = (m: string) => social?.toplines.find((t) => t.metric === m)?.change;
   const word = (v: number | null | undefined) => (v == null ? 'new' : `${v < 0 ? 'down' : 'up'} ${signedPct(v).slice(1)}`);
   const cls = (v: number | null | undefined) => (v == null ? '' : v >= 0 ? 'up' : 'down');
   const postsFrom = social?.from ?? win.curFrom;
@@ -68,10 +58,18 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
         <div className="inner">
           <h1>Social pulse</h1>
           <p className="take">
-            {social ? (
-              <>Shares <b className={cls(st('shares'))}>{word(st('shares'))}</b>, saves <b className={cls(st('saves'))}>{word(st('saves'))}</b>, reposts <b className={cls(st('reposts'))}>{word(st('reposts'))}</b> on the {period} days before. </>
-            ) : null}
-            {takeaway(heads)}
+            {splits.organic ? (() => {
+              const o = (m: string) => splits.organic!.toplines.find((t) => t.metric === m)?.change;
+              const pv = (m: string) => splits.paid?.toplines.find((t) => t.metric === m)?.current ?? 0;
+              const cv = (m: string) => splits.combined?.toplines.find((t) => t.metric === m)?.current ?? 0;
+              const spend = data.adsByDay.filter((r) => r.day >= splits.organic!.from && r.day <= splits.organic!.to).reduce((x, r) => x + r.spend, 0);
+              const share = cv('views') ? pv('views') / cv('views') : 0;
+              return (<>
+                <span className="take-line"><b>Organic:</b> shares <b className={cls(o('shares'))}>{word(o('shares'))}</b>, saves <b className={cls(o('saves'))}>{word(o('saves'))}</b>, reposts <b className={cls(o('reposts'))}>{word(o('reposts'))}</b>, views <b className={cls(o('views'))}>{word(o('views'))}</b> on the {period} days before.</span>{' '}
+                {spend > 0 && <span className="take-line"><b>Paid on top:</b> £{Math.round(spend).toLocaleString('en-GB')} spent, adding {compact(pv('views'))} views ({Math.round(share * 100)}% of all views), {compact(pv('shares'))} shares and {compact(pv('saves'))} saves.</span>}{' '}
+              </>);
+            })() : null}
+            {takeaway(heads) && <span className="take-line muted-line"><b>All channels (Sprout, paid included):</b> {takeaway(heads)}</span>}
           </p>
           {data.lastSync && (
             <p className="cap" style={{ color: 'rgba(255,255,255,.75)' }}>
@@ -89,7 +87,7 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
           <div className="seg" role="group" aria-label="Channel">
             {(['All', ...CHANNELS] as ChannelFilter[]).map((c) => <button key={c} type="button" aria-pressed={channel === c} onClick={() => setChannel(c)}>{c}</button>)}
           </div>
-          <div className="seg" role="group" aria-label="Organic or paid" title="Switches Views and New follows. Shares, saves and reposts are as the platforms report them.">
+          <div className="seg" role="group" aria-label="Organic or paid" title="Switches every topline: shares, saves, reposts, views and new follows.">
             {([['organic', 'Organic'], ['paid', 'Paid'], ['combined', 'Combined']] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={split === k} onClick={() => setSplit(k)}>{l}</button>)}
           </div>
           <span style={{ marginLeft: 'auto' }}><SyncButton /></span>

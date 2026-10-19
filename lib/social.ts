@@ -31,14 +31,15 @@ export interface Topline {
 /** Rewrites one platform-day value, e.g. to take paid views out (organic) or keep only them (paid). Identity when absent. */
 export type ToplineAdjust = (metric: SocialMetric, platform: AccountDay['platform'], day: string, value: number) => number;
 
-export function socialToplines(rows: AccountDay[], media: Media[], period: Period, channel: ChannelFilter, adjust?: ToplineAdjust): { toplines: Topline[]; from: string; to: string } | null {
+export function socialToplines(rows: AccountDay[], media: Media[], period: Period, channel: ChannelFilter, adjust?: ToplineAdjust, opts: { tiktokVideoSaves?: boolean } = {}): { toplines: Topline[]; from: string; to: string } | null {
   const last = lastSocialDay(rows);
   const plats = platformsFor(channel);
   if (!last || !plats) return null;
   const from = shiftDay(last, -(period - 1)), prevTo = shiftDay(last, -period), prevFrom = shiftDay(last, -(2 * period - 1));
   const inRange = (d: string, a: string, b: string) => d >= a && d <= b;
   const scoped = rows.filter((r) => plats.includes(r.platform));
-  const ttMedia = media.filter((m) => m.platform === 'TikTok' && plats.includes('TikTok'));
+  // TikTok saves come per video with no paid split, so the paid view leaves them out.
+  const ttMedia = opts.tiktokVideoSaves === false ? [] : media.filter((m) => m.platform === 'TikTok' && plats.includes('TikTok'));
 
   const adj = (m: SocialMetric, r: AccountDay) => { const v = r[m] ?? 0; return adjust ? adjust(m, r.platform, r.date, v) : v; };
   const daily = (m: SocialMetric, day: string) => {

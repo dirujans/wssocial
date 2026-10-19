@@ -45,7 +45,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     alerts: (al.data ?? []) as DashboardData['alerts'],
     competitors: (co.data ?? []) as CompetitorItem[],
     mentions: (me.data ?? []) as Mention[],
-    adsByDay: ((ab.data ?? []) as AdsByDay[]).map((r) => ({ ...r, ig_spend: Number(r.ig_spend), tt_spend: Number(r.tt_spend), spend: Number(r.spend), ig_impressions: Number(r.ig_impressions), tt_spark_plays: Number(r.tt_spark_plays), tt_plays: Number(r.tt_plays), tt_follows: Number(r.tt_follows) })),
+    adsByDay: ((ab.data ?? []) as AdsByDay[]).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, k === 'day' ? v : Number(v ?? 0)])) as unknown as AdsByDay),
     lastSync: (s.data?.[0] as DashboardData['lastSync']) ?? null,
   };
 }
@@ -246,4 +246,4 @@ export async function loadPaid(): Promise<PaidData> {
   };
 }
 
-export interface AdsByDay { day: string; ig_impressions: number; ig_spend: number; tt_spark_plays: number; tt_plays: number; tt_follows: number; tt_spend: number; spend: number }
+export interface AdsByDay { day: string; ig_impressions: number; ig_spend: number; ig_shares: number; ig_saves: number; tt_spark_plays: number; tt_plays: number; tt_spark_shares: number; tt_shares: number; tt_follows: number; tt_spend: number; spend: number }
