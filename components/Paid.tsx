@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { PaidData } from '@/lib/data';
-import { AGENCY_LABEL, boosts, campaigns, efficiency, igPaidModel, paidByDay, spikes, splitViews, totals, type AdDay, type Agency } from '@/lib/paid';
+import { AGENCY_LABEL, boosts, campaigns, efficiency, igPaidModel, paidByDay, spikes, splitViews, totals, unpackAds, type AdDay, type Agency } from '@/lib/paid';
 import CountUp from './CountUp';
 import SectionNav from './SectionNav';
 import { LphFooter } from './Brand';
@@ -21,17 +21,18 @@ export default function Paid({ data, today }: { data: PaidData; today: string })
   const [plat, setPlat] = useState<PlatformFilter>('All');
   const [agencyFilter, setAgencyFilter] = useState<'All' | Agency>('All');
 
-  const lastAdDay = data.ads.reduce<string>((m, r) => (r.day > m && r.day < today ? r.day : m), '');
+  const allAds = useMemo(() => unpackAds(data.packed), [data.packed]);
+  const lastAdDay = allAds.reduce<string>((m, r) => (r.day > m && r.day < today ? r.day : m), '');
   const to = lastAdDay || shift(today, -1);
   const from = shift(to, -(period - 1)), prevTo = shift(from, -1), prevFrom = shift(prevTo, -(period - 1));
   const scope = (r: AdDay) => plat === 'All' || r.platform === plat;
-  const cur = useMemo(() => data.ads.filter((r) => r.day >= from && r.day <= to && scope(r)), [data.ads, from, to, plat]); // eslint-disable-line react-hooks/exhaustive-deps
-  const prev = useMemo(() => data.ads.filter((r) => r.day >= prevFrom && r.day <= prevTo && scope(r)), [data.ads, prevFrom, prevTo, plat]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cur = useMemo(() => allAds.filter((r) => r.day >= from && r.day <= to && scope(r)), [allAds, from, to, plat]); // eslint-disable-line react-hooks/exhaustive-deps
+  const prev = useMemo(() => allAds.filter((r) => r.day >= prevFrom && r.day <= prevTo && scope(r)), [allAds, prevFrom, prevTo, plat]); // eslint-disable-line react-hooks/exhaustive-deps
   const t = totals(cur), tp = totals(prev);
   const byAgency = (['Translate Culture', 'MSQ'] as Agency[]).map((a) => ({ a, meta: totals(cur.filter((r) => r.agency === a && r.platform === 'Meta')), tiktok: totals(cur.filter((r) => r.agency === a && r.platform === 'TikTok')) }));
 
   // Organic / paid split per platform per day.
-  const paidMap = useMemo(() => paidByDay(data.ads), [data.ads]);
+  const paidMap = useMemo(() => paidByDay(allAds), [allAds]);
   const igViews = useMemo(() => new Map(data.accountDays.filter((r) => r.platform === 'Instagram').map((r) => [r.date, r.views ?? 0])), [data.accountDays]);
   const ttViews = useMemo(() => new Map(data.accountDays.filter((r) => r.platform === 'TikTok').map((r) => [r.date, r.views ?? 0])), [data.accountDays]);
   const igModel = useMemo(() => igPaidModel(igViews, paidMap), [igViews, paidMap]);
@@ -49,7 +50,7 @@ export default function Paid({ data, today }: { data: PaidData; today: string })
 
   const eff = useMemo(() => efficiency(cur), [cur]);
   const camp = useMemo(() => campaigns(cur).filter((c) => agencyFilter === 'All' || c.agency === agencyFilter), [cur, agencyFilter]);
-  const boostList = useMemo(() => boosts(data.ads.filter((r) => r.day >= shift(to, -119)), data.posts).filter((b) => b.lastDay >= from && (plat === 'All' || (plat === 'TikTok') === (b.post.platform === 'TikTok'))), [data.ads, data.posts, to, from, plat]);
+  const boostList = useMemo(() => boosts(allAds.filter((r) => r.day >= shift(to, -119)), data.posts).filter((b) => b.lastDay >= from && (plat === 'All' || (plat === 'TikTok') === (b.post.platform === 'TikTok'))), [allAds, data.posts, to, from, plat]);
   const ads = useMemo(() => {
     const m = new Map<string, AdDay[]>();
     for (const r of cur) (m.get(`${r.platform}:${r.ad_id}`) ?? m.set(`${r.platform}:${r.ad_id}`, []).get(`${r.platform}:${r.ad_id}`)!).push(r);

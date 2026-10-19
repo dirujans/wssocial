@@ -4,7 +4,7 @@ import { fcMentions, FC_LAUNCH, isFcPost, isFcText, type FcEntry, type FcLinkDay
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
 import type { AccountDay, Alert, AudienceDemo, CityDay, NsoCreator, NsoOpening, NsoPage, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
-import type { AdDay, PostLike } from './paid';
+import { packAds, type AdDay, type PackedAds, type PostLike } from './paid';
 
 export interface DashboardData {
   days: ProfileDay[];
@@ -209,7 +209,7 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
 /* ---------- Paid ---------- */
 
 export interface PaidData {
-  ads: AdDay[];
+  packed: PackedAds;
   posts: PostLike[];
   accountDays: AccountDay[];
   lastSync: { status: string; finished_at: string } | null;
@@ -239,7 +239,7 @@ export async function loadPaid(): Promise<PaidData> {
   ]);
   for (const r of [m, a, s]) if (r.error) throw new Error(r.error.message);
   return {
-    ads: ads.map((r) => ({ ...r, spend: Number(r.spend) })),
+    packed: packAds(ads.map((r) => ({ ...r, spend: Number(r.spend) }))),
     posts: (m.data ?? []) as PostLike[],
     accountDays: (a.data ?? []) as AccountDay[],
     lastSync: (s.data?.[0] as PaidData['lastSync']) ?? null,

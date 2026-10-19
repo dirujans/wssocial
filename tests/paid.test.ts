@@ -51,3 +51,21 @@ test('spikes label paid-driven days', () => {
   const s = spikes(series);
   assert.equal(s.length, 1); assert.equal(s[0].verdict, 'Paid');
 });
+
+test('packAds round-trips and merges non-Instagram Meta placements', async () => {
+  const { packAds, unpackAds, totals, paidByDay } = await import('../lib/paid');
+  const base = { platform: 'Meta' as const, ad_id: '1', account_id: 'a', account_name: 'A', agency: 'MSQ' as const, campaign_id: 'c', campaign: 'C', objective: 'o', ad_name: 'n', post_key: null, post_link: null, spark: null, reach: 1, clicks: 1, link_clicks: 1, video_views: 10, thruplays: 1, likes: 1, comments: 0, shares: 0, saves: 0, follows: null, profile_visits: null, organic_views: null };
+  const rows = [
+    { ...base, day: '2026-10-01', placement: 'instagram', spend: 10, impressions: 1000 },
+    { ...base, day: '2026-10-01', placement: 'facebook', spend: 5, impressions: 500 },
+    { ...base, day: '2026-10-01', placement: 'audience_network', spend: 1, impressions: 100 },
+    { ...base, day: '2026-10-02', placement: 'messenger', spend: 0, impressions: 0 },
+  ];
+  const p = packAds(rows);
+  assert.equal(p.ads.length, 1);
+  assert.equal(p.rows.length, 2);
+  const back = unpackAds(p);
+  assert.deepEqual(totals(back).spend, totals(rows).spend);
+  assert.equal(paidByDay(back).get('2026-10-01')!.igImpressions, 1000);
+  assert.equal(back.find((r) => r.placement === 'other')!.video_views, 20);
+});

@@ -31,7 +31,7 @@ Read this first in any new session. It is the handover: what exists, where it li
 - Next.js 14 App Router, Recharts, Supabase (service role, server only), HMAC cookie sign-in (`lib/auth.ts`).
 - Brand: black and white lead, Opal #00A78A, flavour colours as accents. Logos in `public/brand` via `components/Brand.tsx`: Wingstop (white outline SVG, from Diri's vector) leads the top bar, chooser and sign-in; the Flavour Club lock-up replaces it on the Flavour Club area only; LPH (Lemon Pepper Holdings) is subtle: top right of the bar (hidden on phones) and every footer. Archivo (wdth axis) stands in for Roc Grotesk until font files arrive.
 - `lib/windsor.ts` all Windsor fetchers; `lib/sync.ts` runs them in parallel and upserts (one failing source never blocks the rest; every run logged to `sync_log`).
-- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`, `lib/paid.ts`. Tests: `npm test` (40 passing). Types: `npm run typecheck`.
+- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`, `lib/paid.ts`. Tests: `npm test` (41 passing). Types: `npm run typecheck`.
 - Loaders in `lib/data.ts`; one client component per page in `components/`.
 - Local builds in the Claude workspace: Google Fonts is blocked, so stub `next/font` in `app/layout.tsx` for the build and restore it after (check `grep next/font app/layout.tsx`).
 
@@ -48,7 +48,7 @@ Read this first in any new session. It is the handover: what exists, where it li
 ## Paid (Windsor `facebook` and `tiktok` ad connectors)
 - Accounts: Meta 3120245488194717 WingstopUK-LPH (Translate Culture, Mas: boosts day-to-day organic), Meta 1339656694773714 WINGSTOP UK - MSQ (SMARTS MSQ), TikTok 7031642344902426625 WINGSTOPUK (Translate Culture monthly budget). MSQ's TikTok account is not connected yet: add it to `TIKTOK_ACCOUNTS` in `lib/paid.ts` once Diri has access, and the head to head picks it up.
 - Agency comes from the account, unless the campaign name starts `MSQ` or `TC |` (`agencyOf`).
-- Table `ads_daily` (day, platform, ad_id, placement), view `ads_by_day` (security_invoker). `lib/adsSync.ts` upserts the last 7 days in the intel sync. Backfilled 17 Jun to 20 Oct 2026; 90-day spend checked against Windsor to within £20 per account.
+- Table `ads_daily` (day, platform, ad_id, placement), view `ads_by_day` (security_invoker). `lib/adsSync.ts` upserts the last 7 days in the intel sync. `loadPaid` sends ads to the page packed (`packAds`/`unpackAds`: ad details once, rows as arrays, non-Instagram Meta placements merged) because raw rows were ~7 MB. Backfilled 17 Jun to 20 Oct 2026; 90-day spend checked against Windsor to within £20 per account.
 - Instagram post-level views and likes are organic only (Meta docs). Instagram account-level daily views include ad views: verified 20 Oct, they track IG ad impressions almost one for one. `igPaidModel` fits account views against IG ad impressions (k capped at 1, needs 21+ days, 10+ ad days, correlation 0.6+) and takes paid out; with no fit, ads are added on top.
 - TikTok account plays include Spark Ad plays (every TikTok ad so far is Spark), so organic = plays minus Spark plays. TikTok paid follows come from the ad account; Meta reports no Instagram follows from ads, so Instagram follows can't be split.
 

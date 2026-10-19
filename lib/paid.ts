@@ -225,3 +225,41 @@ export function spikes(series: { day: string; platform: 'Instagram' | 'TikTok'; 
   }
   return out.sort((a, b) => b.day.localeCompare(a.day));
 }
+
+/* ---------- Compact transport for the browser ----------
+ * ~10k ad-day rows as objects is ~7 MB of page payload. Ad details are sent once per ad, rows as number arrays,
+ * and Meta placements other than Instagram are merged into one 'other' row (only the Instagram placement matters downstream). */
+const NUM_KEYS = ['spend', 'impressions', 'reach', 'clicks', 'link_clicks', 'video_views', 'thruplays', 'likes', 'comments', 'shares', 'saves', 'follows', 'profile_visits', 'organic_views'] as const;
+const META_KEYS = ['platform', 'ad_id', 'account_id', 'account_name', 'agency', 'campaign_id', 'campaign', 'objective', 'ad_name', 'post_key', 'post_link', 'spark'] as const;
+type AdMeta = Pick<AdDay, (typeof META_KEYS)[number]>;
+export interface PackedAds { ads: AdMeta[]; rows: [string, number, string, ...(number | null)[]][] }
+
+export function packAds(rows: AdDay[]): PackedAds {
+  const idx = new Map<string, number>(), ads: AdMeta[] = [];
+  const merged = new Map<string, AdDay>();
+  for (const r of rows) {
+    if (!r.spend && !r.impressions) continue;
+    const placement = r.platform === 'Meta' && r.placement !== 'instagram' ? 'other' : r.placement;
+    const k = `${r.day}|${r.platform}|${r.ad_id}|${placement}`;
+    const m = merged.get(k);
+    if (!m) { merged.set(k, { ...r, placement }); continue; }
+    for (const f of NUM_KEYS) { const a = m[f], b = r[f]; (m as unknown as Record<string, number | null>)[f] = a == null && b == null ? null : f === 'organic_views' ? Math.max(a ?? 0, b ?? 0) : (a ?? 0) + (b ?? 0); }
+  }
+  const out: PackedAds['rows'] = [];
+  for (const r of merged.values()) {
+    const ak = `${r.platform}|${r.ad_id}`;
+    let i = idx.get(ak);
+    if (i === undefined) { i = ads.length; idx.set(ak, i); ads.push(Object.fromEntries(META_KEYS.map((k) => [k, r[k]])) as AdMeta); }
+    const nums = NUM_KEYS.map((f) => { const v = r[f]; return v == null ? null : f === 'spend' ? Math.round(v * 100) / 100 : v; });
+    out.push([r.day, i, r.placement, ...nums]);
+  }
+  return { ads, rows: out };
+}
+
+export function unpackAds(p: PackedAds): AdDay[] {
+  return p.rows.map(([day, i, placement, ...nums]) => {
+    const r = { ...p.ads[i], day, placement } as AdDay;
+    NUM_KEYS.forEach((f, j) => { (r as unknown as Record<string, number | null>)[f] = f === 'spend' || f === 'impressions' ? Number(nums[j] ?? 0) : (nums[j] as number | null); });
+    return r;
+  });
+}
