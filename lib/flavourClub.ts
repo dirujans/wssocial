@@ -78,8 +78,17 @@ const num = (v: unknown): number | null => (v === null || v === undefined || v =
 const str = (v: unknown) => (v == null ? '' : String(v));
 
 /** Apify hashtag results (TikTok via clockworks/tiktok-scraper, Instagram via apify/instagram-hashtag-scraper) → entries. */
+const OWN = /^(wingstopuk|wingstopie|wingstop_ie|wingstopireland|wingstop)$/i;
+/** Hashtag search is loose (TikTok returned US Wingstop videos with no club tag), so an entry must actually name the club, and never be one of ours. */
+export function isFcEntry(i: Row): boolean {
+  const author = str(((i.authorMeta ?? {}) as Row).name || i.ownerUsername);
+  if (OWN.test(author)) return false;
+  const tags = Array.isArray(i.hashtags) ? (i.hashtags as unknown[]).map((h) => (typeof h === 'string' ? h : str((h as Row)?.name))).join(' ') : '';
+  return isFcText(`${str(i.text || i.caption)} ${tags}`);
+}
+
 export function mapFcEntries(items: Row[], platform: 'TikTok' | 'Instagram'): Omit<FcEntry, 'status' | 'note'>[] {
-  return items.filter((i) => !i.error && (i.id || i.shortCode)).map((i) => {
+  return items.filter((i) => !i.error && (i.id || i.shortCode) && isFcEntry(i)).map((i) => {
     if (platform === 'TikTok') {
       const a = (i.authorMeta ?? {}) as Row, vm = (i.videoMeta ?? {}) as Row;
       return { id: `tt_${str(i.id)}`, platform, author: str(a.name) || null, author_name: str(a.nickName) || null, url: str(i.webVideoUrl) || null, caption: str(i.text) || null,
