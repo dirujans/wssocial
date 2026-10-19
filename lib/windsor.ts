@@ -23,6 +23,9 @@ async function windsor(connector: string, fields: string[], opts: { datePreset?:
   const qs = new URLSearchParams({ api_key: key, fields: fields.join(',') });
   if (opts.datePreset) qs.set('date_preset', opts.datePreset);
   if (opts.accounts?.length) qs.set('select_accounts', opts.accounts.join(','));
+  // Windsor caches each exact URL for 6 hours, so an otherwise identical call returns stale rows
+  // (launch-day comments were missing). A per-run marker makes every sync a new URL.
+  qs.set('_run', String(Math.floor(Date.now() / 60000)));
   const res = await fetchWithRetry(`${BASE}/${connector}?${qs}`);
   const json = (await res.json()) as { data?: Row[]; error?: string };
   if (!Array.isArray(json.data)) throw new Error(`Windsor ${connector}: ${json.error ?? 'no data in response'}`);
