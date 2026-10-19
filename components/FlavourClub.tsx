@@ -6,7 +6,6 @@ import { classifyFc, FC_HASHTAG, FC_LAUNCH, FC_SITE, opportunities, type FcEntry
 import CountUp from './CountUp';
 import { LphFooter } from './Brand';
 import FcScans from './FcScans';
-import FcTraffic from './FcTraffic';
 import PostWall from './PostWall';
 import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
@@ -101,7 +100,6 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
         </div>
       </section>
 
-      <FcTraffic rows={data.links} />
       <FcScans rows={data.links} stores={data.stores} />
 
       <PostWall media={data.posts} comments={data.comments} from="2000-01-01" channel="All" id="club-posts" title="Club posts" eyebrow="Every post about Flavour Club · tap to play and read the comments" />
@@ -275,9 +273,9 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
         </div>
       </section>
 
-      <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'traffic', label: 'Sign-up traffic' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'conversation', label: 'What they say' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }]} />
+      <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'conversation', label: 'What they say' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        <div className="inner"><p className="cap">Flavour Club only. Our posts and comments from Instagram and TikTok via Windsor.ai; hashtag entries via Apify; link clicks and QR scans via Bitly; press and chatter from the morning report. Themes and topics are keyword rules.</p><LphFooter /></div>
+        <div className="inner"><p className="cap">Flavour Club only. Our posts and comments from Instagram and TikTok via Windsor.ai; hashtag entries via Apify; QR scans via Bitly; press and chatter from the morning report. Themes and topics are keyword rules.</p><LphFooter /></div>
       </footer>
     </main>
   );

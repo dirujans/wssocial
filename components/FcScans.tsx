@@ -9,18 +9,20 @@ import { day, int, pct } from './format';
 import type { MapPoint } from './ScanMap';
 
 const ScanMap = dynamic(() => import('./ScanMap'), { ssr: false, loading: () => <div className="scanmap" aria-busy="true" /> });
-const shift = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
-type Period = 'all' | 'launch' | '14d';
+type Period = 'launch' | 'latest';
 
 /** QR scans in store: which placement works, a leaderboard of stores, and a map. */
 export default function FcScans({ rows, stores }: { rows: FcLinkDay[]; stores: FcStore[] }) {
-  const [period, setPeriod] = useState<Period>('all');
+  const [period, setPeriod] = useState<Period>('launch');
   const [mode, setMode] = useState<'heat' | 'dots'>('heat');
   const [selected, setSelected] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const latest = rows.reduce<string | null>((m, r) => (!m || r.day > m ? r.day : m), null);
-  const from = period === 'all' ? '2000-01-01' : period === 'launch' ? FC_LAUNCH : shift(latest ?? FC_LAUNCH, -13);
+  // Launch day onwards only: every store had its tent out by then, so it is a fair start line. Pre-launch scans are ignored.
+  const from = period === 'launch' ? FC_LAUNCH : (latest && latest > FC_LAUNCH ? latest : FC_LAUNCH);
   const s = useMemo(() => linkSummary(rows, from), [rows, from]);
+  const days = useMemo(() => linkSummary(rows, FC_LAUNCH).days.map((d) => ({ ...d, byChannel: Object.fromEntries(Object.entries(d.byChannel).filter(([k]) => isInstore(k))) })).map((d) => ({ ...d, total: Object.values(d.byChannel).reduce<number>((a, b) => a + (b ?? 0), 0) })), [rows]);
+  const dayMax = Math.max(1, ...days.map((d) => d.total));
 
   const placements = s.channels.filter((c) => isInstore(c.channel) && (c.total > 0 || ['Table tents', 'A-boards', 'Receipts'].includes(c.channel)));
   const storeCount = Math.max(1, stores.length);
@@ -38,15 +40,14 @@ export default function FcScans({ rows, stores }: { rows: FcLinkDay[]; stores: F
   }), [stores, s]);
   const onSelect = useCallback((code: string) => setSelected((c) => (c === code ? null : code)), []);
   const unplaced = stores.length - points.length;
-  const testSweep = period === 'all' && rows.filter((r) => r.day === '2026-09-22' && r.total === 1).length > 40;
 
   return (
     <section className="band" id="scans">
       <div className="inner">
         <div className="band-head">
-          <div><span className="eyebrow">QR codes in store · Bitly{latest ? ` · up to ${day(latest)}` : ''}</span><h2>Scans</h2></div>
+          <div><span className="eyebrow">QR codes in store · from launch day, {day(FC_LAUNCH)}{latest ? `, up to ${day(latest)}` : ''} · Bitly</span><h2>Scans</h2></div>
           <div className="seg" role="group" aria-label="Period">
-            {([['all', 'All time'], ['launch', 'Since launch'], ['14d', 'Last 14 days']] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={period === k} onClick={() => setPeriod(k)}>{l}</button>)}
+            {([['launch', 'Since launch'], ['latest', latest && latest > FC_LAUNCH ? `Latest day · ${day(latest)}` : 'Launch day']] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={period === k} onClick={() => setPeriod(k)}>{l}</button>)}
           </div>
         </div>
 
@@ -101,10 +102,25 @@ export default function FcScans({ rows, stores }: { rows: FcLinkDay[]; stores: F
               </ol>
               {ranked.length > 15 && <button type="button" className="chip" onClick={() => setShowAll((v) => !v)} style={{ marginTop: 8 }}>{showAll ? 'Top 15' : `All ${ranked.length} stores`}</button>}
             </>)}
-            {cold.length > 0 && <p className="note" style={{ marginTop: 12 }}><b>No scans {period === 'all' ? 'yet' : 'in this period'}:</b> {cold.join(', ')}. Worth a call to check the tents are out.</p>}
+            {cold.length > 0 && <p className="note" style={{ marginTop: 12 }}><b>No scans {period === 'launch' ? 'since launch' : 'on this day'}:</b> {cold.join(', ')}. Worth a call to check the tents are out.</p>}
           </div>
         </div>
-        {testSweep && <p className="note">22 Sep shows one scan on almost every store&apos;s tent: it looks like a test sweep, so treat a store sitting at 1 as zero.</p>}
+        {days.length > 1 && (
+          <div className="card" style={{ marginTop: 16 }}>
+            <h3>Day by day since launch</h3>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 160, marginTop: 14 }} role="img" aria-label="In-store scans per day by placement">
+              {days.map((d) => (
+                <div key={d.day} style={{ flex: 1, minWidth: 0, maxWidth: 64, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'flex-end' }} title={`${day(d.day)}: ${int(d.total)}`}>
+                  <span className="muted" style={{ fontSize: '.68rem', textAlign: 'center' }}>{int(d.total)}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column-reverse', height: `${(d.total / dayMax) * 80}%`, minHeight: 2, borderRadius: 4, overflow: 'hidden' }}>
+                    {Object.entries(d.byChannel).map(([k, n]) => n ? <span key={k} style={{ flex: n, background: linkCol(k) }} /> : null)}
+                  </div>
+                  <span style={{ fontSize: '.66rem', textAlign: 'center', marginTop: 4 }}>{d.day.slice(8)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

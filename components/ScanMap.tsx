@@ -9,8 +9,13 @@ import 'leaflet.heat';
 
 export interface MapPoint { code: string; name: string; place: string | null; lat: number; lng: number; total: number; latest: number; rank: number | null }
 
-const TILE = (dark: boolean) => `https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`;
-const ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> · places: Ordnance Survey via postcodes.io';
+// CARTO raster tiles need a free key since 25 Sep 2026 (NEXT_PUBLIC_CARTO_KEY in Vercel). Without one the map
+// falls back to standard OpenStreetMap tiles, which need no key (light use, attribution required).
+const CARTO_KEY = process.env.NEXT_PUBLIC_CARTO_KEY;
+const TILE = (dark: boolean) => CARTO_KEY
+  ? `https://basemaps.cartocdn.com/rastertiles/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}.png?key=${encodeURIComponent(CARTO_KEY)}`
+  : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const ATTR = `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors${CARTO_KEY ? ' &copy; <a href="https://carto.com/attributions">CARTO</a>' : ''} · places: Ordnance Survey via postcodes.io`;
 const isDark = () => (typeof document !== 'undefined' ? document.documentElement.dataset.theme !== 'light' : true);
 
 /** Same-place stores (two in Reading, two in Manchester) get a small, stable nudge so both stay clickable. */
@@ -33,7 +38,7 @@ export default function ScanMap({ points, selected, onSelect, mode }: { points: 
   useEffect(() => {
     if (!el.current || map.current) return;
     const m = L.map(el.current, { zoomControl: true, scrollWheelZoom: false, attributionControl: true }).setView([54.3, -3.2], 5.4);
-    tiles.current = L.tileLayer(TILE(isDark()), { attribution: ATTR, subdomains: 'abcd', maxZoom: 18 }).addTo(m);
+    tiles.current = L.tileLayer(TILE(isDark()), { attribution: ATTR, maxZoom: 18 }).addTo(m);
     layer.current = L.layerGroup().addTo(m);
     map.current = m;
     const obs = new MutationObserver(() => tiles.current?.setUrl(TILE(isDark())));
