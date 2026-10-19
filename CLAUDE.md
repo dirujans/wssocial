@@ -60,7 +60,7 @@ Read this first in any new session. It is the handover: what exists, where it li
 ## Scheduled tasks (Claude)
 - Daily social report 07:47 London (`trig_01XgA2qvHZRemRMnD9KLADmx`): report to Diri with a Flavour Club section, inserts `mentions` (Flavour Club ones with topic `flavour_club`) and `competitor_items`.
 - Flavour Club Instagram comment top-up 07:32 London (`trig_01GVBeqVTcVagMVmNNd4ei6c`): Windsor MCP to `comments` while Windsor's REST feed lags. Switch off once the sync catches up.
-- Flavour Club link tracking 07:20 London: Bitly export to `fc_link_days`.
+- Flavour Club link tracking 07:20 London (`trig_01NSBbdmf58Vh9Pk38i4LvR3`): Bitly export to `fc_link_days`.
 - Diri's own competitor brief 07:59 (`trig_01ADLPb42PW2LbSYc5osREZM`): leave alone.
 - Weekly NSO research Mondays 08:26 (`trig_01KbQNFtvy7xNerx2aQViyjb`): new openings, local pages and creators.
 
