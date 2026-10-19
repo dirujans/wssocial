@@ -5,7 +5,8 @@ import { fetchWithRetry } from './http';
 import { linkStore } from './flavourClub';
 import { supabaseAdmin } from './supabase';
 
-type Hint = { q: string; region?: RegExp };
+/** fixed: town-centre coordinates for places the open GB data doesn't cover (Northern Ireland) or files under another name. */
+type Hint = { q: string; region?: RegExp; fixed?: [number, number] };
 const LDN = /London/i;
 /** Store name → place to look up. Add here when a new store doesn't match a town name. */
 export const STORE_PLACE: Record<string, Hint> = {
@@ -20,7 +21,9 @@ export const STORE_PLACE: Record<string, Hint> = {
   'Newcastle Eldon Square': { q: 'Newcastle upon Tyne' }, 'Newcastle Gateshead': { q: 'Gateshead' },
   'Nottingham St Peters Square': { q: 'Nottingham' },
   'Edinburgh St James Quarter': { q: 'Edinburgh' }, 'Edinburgh Fountain Park': { q: 'Fountainbridge' }, 'Falkirk Central': { q: 'Falkirk' }, Fife: { q: 'Dunfermline' },
-  'Belfast Dundonald': { q: 'Dundonald', region: /Northern Ireland/i }, 'Belfast Rushmere': { q: 'Craigavon' }, 'Belfast Boucher Road': { q: 'Belfast' },
+  // OS Open Names is Great Britain only, so Northern Ireland stores use town-centre coordinates.
+  'Belfast Dundonald': { q: 'Dundonald (NI)', fixed: [54.594, -5.811] }, 'Belfast Rushmere': { q: 'Craigavon', fixed: [54.447, -6.387] }, 'Belfast Boucher Road': { q: 'Belfast', fixed: [54.597, -5.930] },
+  Swansea: { q: 'Swansea', fixed: [51.621, -3.944] },
   'Reading Gateway': { q: 'Reading' }, 'Reading Oracle': { q: 'Reading' }, 'Luton Retail Park': { q: 'Luton' }, 'Crawley West Green': { q: 'Crawley' },
   'Cambridge Lion Yard': { q: 'Cambridge', region: /East/i }, 'Glasgow St Enoch': { q: 'Glasgow' }, Staines: { q: 'Staines-upon-Thames' }, Southend: { q: 'Southend-on-Sea' },
   'Merthyr Tydfil': { q: 'Merthyr Tydfil' }, Kingston: { q: 'Kingston upon Thames' },
@@ -41,7 +44,8 @@ export function pickPlace(places: Place[], hint: Hint): Place | null {
   const norm = (s: string) => s.toLowerCase().replace(/[’']/g, "'").trim();
   const named = places.filter((p) => norm(p.name_1) === norm(hint.q) && typeof p.latitude === 'number');
   const pool = (hint.region ? named.filter((p) => hint.region!.test(`${p.region ?? ''} ${p.country ?? ''}`)) : named);
-  const list = pool.length ? pool : named;
+  // A region hint is strict: "Dundonald" in Ayrshire must never stand in for Dundonald near Belfast.
+  const list = hint.region ? pool : named;
   return [...list].sort((a, b) => (RANK[a.local_type ?? ''] ?? 9) - (RANK[b.local_type ?? ''] ?? 9))[0] ?? null;
 }
 
@@ -66,7 +70,7 @@ export async function geocodeStores(max = 30): Promise<{ added: number; placed: 
   let placed = 0; const missed: string[] = [];
   for (const s of todo ?? []) {
     const hint = STORE_PLACE[s.name] ?? { q: s.name };
-    let p = await lookup(hint).catch(() => null);
+    let p: Place | null = hint.fixed ? { name_1: hint.q, local_type: 'Town', region: 'Fixed', latitude: hint.fixed[0], longitude: hint.fixed[1] } : await lookup(hint).catch(() => null);
     if (!p && !STORE_PLACE[s.name] && s.name.includes(' ')) p = await lookup({ q: s.name.split(' ')[0] }).catch(() => null);
     if (!p) { missed.push(s.name); continue; }
     const { error } = await db.from('fc_stores').update({ lat: p.latitude, lng: p.longitude, place: p.name_1, region: p.region ?? p.country ?? null, geocoded_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('code', s.code);

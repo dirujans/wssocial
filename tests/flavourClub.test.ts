@@ -75,6 +75,7 @@ test('pickPlace prefers the exact name in the hinted region, then the bigger set
   assert.equal(pickPlace(places, { q: 'Stratford', region: /London/ })?.latitude, 51.54);
   assert.equal(pickPlace(places, { q: 'Stratford' })?.latitude, 51.54);
   assert.equal(pickPlace(places, { q: 'Nowhere' }), null);
+  assert.equal(pickPlace(places, { q: 'Stratford', region: /Northern Ireland/ }), null);
 });
 
 test('unknown QR labels show under their own name and count as in-store', () => {
