@@ -1,5 +1,6 @@
 import 'server-only';
 import type { TikTokAccountDay, TikTokVideo, TrendRow } from './tiktok';
+import { fcMentions, FC_LAUNCH, isFcPost, type FcEntry } from './flavourClub';
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
 import type { AccountDay, Alert, AudienceDemo, CityDay, NsoCreator, NsoOpening, NsoPage, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
@@ -154,5 +155,42 @@ export async function loadInspo(): Promise<InspoData> {
   return {
     trends: rows, trendDates: [...new Set(rows.map((r) => r.date))].sort().reverse(),
     marks: (mk.data ?? []) as InspoData['marks'], comments: (c.data ?? []) as Comment[], mentions: (m.data ?? []) as Mention[], tiktok: (tv.data ?? []) as TikTokVideo[],
+  };
+}
+
+export interface FlavourClubData {
+  posts: Media[];
+  comments: Comment[];
+  mentions: Mention[];
+  entries: FcEntry[];
+  marks: { key: string; verdict: string }[];
+  loyalty: CompetitorItem[];
+  lastSync: { status: string; finished_at: string } | null;
+}
+
+/** Everything Flavour Club: our club posts (Instagram and TikTok), their comments, hashtag entries, press and chatter, loyalty moves elsewhere. */
+export async function loadFlavourClub(): Promise<FlavourClubData> {
+  const db = supabaseAdmin();
+  const since = shiftDay(FC_LAUNCH, -14);
+  const [m, me, en, mk, co, s] = await Promise.all([
+    db.from('media').select('*').gte('posted', since).order('posted_at', { ascending: false }),
+    db.from('mentions').select('*').gte('posted_on', since).order('posted_on', { ascending: false }).limit(500),
+    db.from('fc_entries').select('*').order('posted_at', { ascending: false, nullsFirst: false }).limit(1000),
+    db.from('fc_marks').select('key,verdict'),
+    db.from('competitor_items').select('*').gte('posted_on', shiftDay(today(), -180)).order('posted_on', { ascending: false }).limit(300),
+    db.from('sync_log').select('status,finished_at').not('finished_at', 'is', null).order('started_at', { ascending: false }).limit(1),
+  ]);
+  for (const r of [m, me, en, mk, co, s]) if (r.error) throw new Error(r.error.message);
+  const posts = ((m.data ?? []) as Media[]).filter(isFcPost);
+  const keys = posts.map((p) => p.comment_key).filter(Boolean);
+  const c = keys.length ? await db.from('comments').select('*').in('post_key', keys).order('likes', { ascending: false }).limit(5000) : { data: [], error: null };
+  if (c.error) throw new Error(c.error.message);
+  return {
+    posts, comments: (c.data ?? []) as Comment[],
+    mentions: fcMentions((me.data ?? []) as Mention[]),
+    entries: (en.data ?? []) as FcEntry[],
+    marks: (mk.data ?? []) as FlavourClubData['marks'],
+    loyalty: ((co.data ?? []) as CompetitorItem[]).filter((i) => /loyal|reward|app\b|points|stamp|club/i.test(`${i.title} ${i.summary ?? ''}`)),
+    lastSync: (s.data?.[0] as FlavourClubData['lastSync']) ?? null,
   };
 }

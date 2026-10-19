@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 /** Team verdict on an inspo item (a trend, a comment): ours | skip | used | clear. */
 export async function POST(req: Request) {
-  if (!isSignedIn()) return Response.json({ ok: false, error: 'Sign in first' }, { status: 401 });
+  if (!isSignedIn('social')) return Response.json({ ok: false, error: 'Sign in first' }, { status: 401 });
   const b = await req.json().catch(() => ({})) as { key?: string; verdict?: string; note?: string };
   if (!b.key || !/^(tag|comment|mention):/.test(b.key)) return Response.json({ ok: false, error: 'Bad key' }, { status: 400 });
   const db = supabaseAdmin();

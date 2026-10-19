@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import type { CompetitorData } from '@/lib/data';
 import { brandOf, scoreboard, type BrandScore } from '@/lib/competitors';
 import type { CompetitorItem, CompetitorPost } from '@/lib/types';
 import CountUp from './CountUp';
 import { BrandFile, GrowthPanel } from './CompetitorGrowth';
 import CompetitorTikTok from './CompetitorTikTok';
+import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
 import { compact, day, int, safeHref, signedInt } from './format';
 
@@ -66,15 +66,6 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
     <main className="shell">
       <header className="hero">
         <div className="inner">
-          <div className="row" style={{ alignItems: 'center' }}>
-            <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
-            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
-              <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience</Link>
-              <Link href="/nso" className="chip" style={{ textDecoration: 'none' }}>NSO</Link>
-              <Link href="/inspo" className="chip" style={{ textDecoration: 'none' }}>Inspo</Link>
-            </span>
-          </div>
           <h1>Competitor watch</h1>
           <p className="take">
             {rivalHandles === 0
@@ -213,6 +204,7 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
         </div>
       </section>
 
+      <SectionNav sections={[{ id: 'scoreboard', label: 'Scoreboard' }, { id: 'growth', label: 'Growth' }, { id: 'tiktok', label: 'TikTok' }, { id: 'viral', label: 'Instagram breakouts' }, { id: 'announcements', label: 'Announcements' }, { id: 'canes', label: "Raising Cane's" }, { id: 'buzz', label: 'Buzz' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
         <div className="inner"><p className="cap">Internal. Competitor posts are public Instagram data through Windsor.ai (Instagram Public connector); add or remove handles there. Moves and buzz come from the daily briefs, which search news, trade press and public social. Figures appear only where a source states them.</p></div>
       </footer>

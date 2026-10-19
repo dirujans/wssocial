@@ -6,7 +6,7 @@ const FIELDS = ['handle', 'name', 'platform', 'followers', 'followers_note', 'en
 
 /** Add creators to an opening (one, or a whole CSV import). Existing handles are updated, shortlist status kept. */
 export async function POST(req: Request) {
-  if (!isSignedIn()) return Response.json({ ok: false, error: 'Sign in first' }, { status: 401 });
+  if (!isSignedIn('nso')) return Response.json({ ok: false, error: 'Sign in first' }, { status: 401 });
   const b = await req.json().catch(() => null) as { opening_id?: string; creators?: Record<string, unknown>[] } | null;
   if (!b?.opening_id || !Array.isArray(b.creators) || !b.creators.length) return Response.json({ ok: false, error: 'opening_id and creators are required' }, { status: 400 });
   if (b.creators.length > 500) return Response.json({ ok: false, error: 'Up to 500 at a time' }, { status: 400 });

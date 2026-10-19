@@ -15,7 +15,7 @@ function Thumb({ m }: { m: Media }) {
   return <img src={m.thumb_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
 }
 
-export default function PostWall({ media, comments, from, channel }: { media: Media[]; comments: Comment[]; from: string; channel: ChannelFilter }) {
+export default function PostWall({ media, comments, from, channel, title = 'What landed', eyebrow = 'Instagram UK & IE and TikTok · tap to play', id = 'posts' }: { media: Media[]; comments: Comment[]; from: string; channel: ChannelFilter; title?: string; eyebrow?: string; id?: string }) {
   const [sort, setSort] = useState<PostSort>('shares');
   const [limit, setLimit] = useState(12);
   const [open, setOpen] = useState<Media | null>(null);
@@ -34,12 +34,12 @@ export default function PostWall({ media, comments, from, channel }: { media: Me
   const unsupported = channel !== 'All' && channel !== 'Instagram' && channel !== 'TikTok';
 
   return (
-    <section className="band" id="posts">
+    <section className="band" id={id}>
       <div className="inner">
         <div className="band-head">
           <div>
-            <span className="eyebrow">Instagram UK &amp; IE and TikTok · tap to play</span>
-            <h2>What landed</h2>
+            <span className="eyebrow">{eyebrow}</span>
+            <h2>{title}</h2>
           </div>
           <div className="seg" role="group" aria-label="Rank posts by">
             {SORTS.map(([k, l]) => <button key={k} type="button" aria-pressed={sort === k} onClick={() => { setSort(k); setLimit(12); }}>{l}</button>)}

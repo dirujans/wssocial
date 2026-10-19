@@ -1,11 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import type { AudienceData } from '@/lib/data';
 import { flavourScores, instagramDemo, latestDay, sentimentOf, sentimentSplit, tiktokDemo, totalOf, type FlavourScore } from '@/lib/audience';
 import type { Comment, Mention, Theme } from '@/lib/types';
 import CountUp from './CountUp';
+import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
 import { CHANNEL_COLOUR, compact, day, int, pct, safeHref } from './format';
 
@@ -83,15 +83,6 @@ export default function Audience({ data, today, now }: { data: AudienceData; tod
     <main className="shell">
       <header className="hero">
         <div className="inner">
-          <div className="row" style={{ alignItems: 'center' }}>
-            <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
-            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
-              <Link href="/competitors" className="chip" style={{ textDecoration: 'none' }}>Competitor watch</Link>
-              <Link href="/nso" className="chip" style={{ textDecoration: 'none' }}>NSO</Link>
-              <Link href="/inspo" className="chip" style={{ textDecoration: 'none' }}>Inspo</Link>
-            </span>
-          </div>
           <h1>Our audience</h1>
           <p className="take">
             <b>{compact(followers)}</b> people follow us across Instagram and TikTok.
@@ -310,6 +301,7 @@ export default function Audience({ data, today, now }: { data: AudienceData; tod
         </div>
       </section>
 
+      <SectionNav sections={[{ id: 'following', label: 'Following' }, { id: 'last-day', label: 'Last 24 hours' }, { id: 'saying', label: 'What they say' }, { id: 'flavours', label: 'Flavour pulse' }, { id: 'mentions', label: 'Unprompted' }, { id: 'who', label: 'Who we reach' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
         <div className="inner"><p className="cap">Internal. Comments, totals and demographics from Instagram and TikTok via Windsor.ai, synced daily. Sentiment and flavour tags are keyword rules. Unprompted mentions come from the 07:47 morning report, which searches TikTok, Reddit, reviews, press and X.</p></div>
       </footer>

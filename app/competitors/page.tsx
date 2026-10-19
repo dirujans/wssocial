@@ -1,13 +1,13 @@
 import Competitors from '@/components/Competitors';
-import { redirect } from 'next/navigation';
-import { isSignedIn } from '@/lib/auth';
+import { requireArea } from '@/lib/auth';
+import TopBar from '@/components/TopBar';
 import { loadCompetitors } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Competitor watch · Wingstop UK&I Social' };
 
 export default async function Page() {
-  if (!isSignedIn()) redirect('/login');
+  const areas = requireArea('competitor', '/competitors');
   let data;
   try {
     data = await loadCompetitors();
@@ -22,5 +22,5 @@ export default async function Page() {
     );
   }
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
-  return <Competitors data={data} today={today} />;
+  return <><TopBar areas={areas} /><Competitors data={data} today={today} /></>;
 }

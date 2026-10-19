@@ -62,7 +62,7 @@ export async function fetchProfileDays(datePreset = 'last_120d'): Promise<Profil
 
 // Do not add post_sentiment_score or post_comments_positive/negative/neutral:
 // the current Sprout plan refuses them and the whole request fails.
-export async function fetchPosts(datePreset = 'last_60d'): Promise<Post[]> {
+export async function fetchPosts(datePreset = 'last_60dT'): Promise<Post[]> {
   const rows = await windsor(
     'sproutsocial',
     ['post_guid', 'post_created_time', 'post_network', 'post_type', 'post_text', 'post_permalink', 'post_impressions', 'post_reach', 'post_video_views', 'post_likes', 'post_comments', 'post_shares', 'post_saves'],
@@ -96,7 +96,7 @@ export async function fetchPosts(datePreset = 'last_60d'): Promise<Post[]> {
   return [...out.values()];
 }
 
-export async function fetchComments(datePreset = 'last_14d'): Promise<Comment[]> {
+export async function fetchComments(datePreset = 'last_14dT'): Promise<Comment[]> {
   const [ig, tt] = await Promise.all([
     windsor(
       'instagram',
@@ -149,7 +149,7 @@ function igKind(type: unknown, product: unknown): Media['kind'] {
 }
 
 /** Instagram feed posts and reels, and TikTok videos, with media and per-post saves, shares, reposts. */
-export async function fetchMedia(datePreset = 'last_120d'): Promise<Media[]> {
+export async function fetchMedia(datePreset = 'last_120dT'): Promise<Media[]> {
   const [ig, tt] = await Promise.all([
     windsor(
       'instagram',

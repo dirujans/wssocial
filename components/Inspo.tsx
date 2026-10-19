@@ -1,7 +1,8 @@
 'use client';
 
+import SectionNav from './SectionNav';
+
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import type { InspoData } from '@/lib/data';
 import { replyBank } from '@/lib/audience';
 import { trendFit, type TikTokVideo } from '@/lib/tiktok';
@@ -64,15 +65,6 @@ export default function Inspo({ data }: { data: InspoData }) {
     <main className="shell">
       <header className="hero">
         <div className="inner">
-          <div className="row" style={{ alignItems: 'center' }}>
-            <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
-            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
-              <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience</Link>
-              <Link href="/competitors" className="chip" style={{ textDecoration: 'none' }}>Competitor watch</Link>
-              <Link href="/nso" className="chip" style={{ textDecoration: 'none' }}>NSO</Link>
-            </span>
-          </div>
           <h1>Inspo</h1>
           <p className="take">
             {trends.length ? <><b>{trends.filter((t) => t.fit === 'ours').length}</b> of {trends.length} UK trending hashtags this week sit in our territory. </> : <>UK trends land after the next sync. </>}
@@ -203,6 +195,7 @@ export default function Inspo({ data }: { data: InspoData }) {
         </div>
       </section>
 
+      <SectionNav sections={[{ id: 'trends', label: 'Trending now' }, { id: 'replies', label: 'Reply with a video' }, { id: 'about-us', label: 'About us' }, { id: 'rivals', label: 'What people pass on' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
         <div className="inner"><p className="cap">Internal. UK trending hashtags from TikTok Creative Center and rival TikToks via Apify (free tier), refreshed daily and twice a week. Comments from Instagram and TikTok via Windsor.ai. Fit and reply tags are keyword rules: a pointer to look, never a brief.</p></div>
       </footer>

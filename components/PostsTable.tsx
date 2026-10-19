@@ -46,7 +46,7 @@ export default function PostsTable({ posts, comments, from, channel, pickedDay, 
   );
 
   return (
-    <section className="card" id="posts">
+    <section className="card" id="all-posts">
       <h2>Posts</h2>
       <p className="note">Click a post to read its comments. Views are video views for videos, otherwise impressions. A huge view count with an engagement rate under 0.5% usually means the post was boosted.</p>
       <div className="controls">

@@ -121,7 +121,7 @@ export interface CompetitorItem {
 export interface Mention {
   id: string; source: string | null; author: string | null; title: string; summary: string | null; kind: string | null;
   action: string | null; priority: string | null; metric: string | null; posted_on: string | null; url: string | null;
-  why: string | null; done: boolean; found_at: string;
+  why: string | null; done: boolean; found_at: string; topic?: string | null;
 }
 
 export interface CompetitorPost {

@@ -3,13 +3,17 @@ import 'server-only';
 // each sync first collects any finished runs and stores their results, then starts runs that are due.
 // Runs finish in the background between the 02:45 and 05:30 syncs.
 import { supabaseAdmin } from './supabase';
+import { FC_HASHTAG, mapFcEntries } from './flavourClub';
 import { mapTikTok, mapTrends, scoreTikTok, TIKTOK_HANDLES, type TikTokVideo } from './tiktok';
 
 const BASE = 'https://api.apify.com/v2';
+// Free plan budget is $5 a month. Costs seen: TikTok profiles ~$0.32 a run, trends ~$0.10 a run.
+// Flavour Club hashtag hunts are the priority during the campaign, so competitor TikTok and trends run weekly.
 const JOBS = {
-  tiktok: { actor: 'clockworks~tiktok-scraper', everyHours: 80, input: () => ({ profiles: TIKTOK_HANDLES, resultsPerPage: 12, profileScrapeSections: ['videos'], profileSorting: 'latest', excludePinnedPosts: true, shouldDownloadVideos: false, shouldDownloadCovers: false }) },
-  // Costs seen on the free plan: TikTok ~$0.32 a run (~$0.007 a video), trends ~$0.10 a run. ~$3.50 a month at these cadences, inside the $5 credit.
-  trends: { actor: 'data_xplorer~tiktok-trends', everyHours: 70, input: () => ({ trendType: 'hashtags', countryCode: 'GB', hashtagPeriod: '7', maxItems: 40 }) },
+  fc_tiktok: { actor: 'clockworks~tiktok-scraper', everyHours: 46, input: () => ({ hashtags: [FC_HASHTAG], resultsPerPage: 25, shouldDownloadVideos: false, shouldDownloadCovers: false }) },
+  fc_instagram: { actor: 'apify~instagram-hashtag-scraper', everyHours: 46, input: () => ({ hashtags: [FC_HASHTAG], resultsLimit: 30 }) },
+  tiktok: { actor: 'clockworks~tiktok-scraper', everyHours: 160, input: () => ({ profiles: TIKTOK_HANDLES, resultsPerPage: 12, profileScrapeSections: ['videos'], profileSorting: 'latest', excludePinnedPosts: true, shouldDownloadVideos: false, shouldDownloadCovers: false }) },
+  trends: { actor: 'data_xplorer~tiktok-trends', everyHours: 160, input: () => ({ trendType: 'hashtags', countryCode: 'GB', hashtagPeriod: '7', maxItems: 40 }) },
 } as const;
 type Kind = keyof typeof JOBS;
 
@@ -18,6 +22,12 @@ const londonToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Eu
 
 async function ingest(kind: Kind, items: Record<string, unknown>[]) {
   const db = supabaseAdmin(); const today = londonToday();
+  if (kind === 'fc_tiktok' || kind === 'fc_instagram') {
+    // Status and notes (the team's founding-member shortlist) are not in these rows, so upserts never overwrite them.
+    const rows = mapFcEntries(items, kind === 'fc_tiktok' ? 'TikTok' : 'Instagram').map((r) => ({ ...r, updated_at: new Date().toISOString() }));
+    if (rows.length) { const { error } = await db.from('fc_entries').upsert(rows, { onConflict: 'id' }); if (error) throw new Error(error.message); }
+    return rows.length;
+  }
   if (kind === 'trends') {
     const rows = mapTrends(items, today);
     if (rows.length) { const { error } = await db.from('tiktok_trends').upsert(rows, { onConflict: 'date,country,hashtag' }); if (error) throw new Error(error.message); }

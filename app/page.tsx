@@ -1,34 +1,42 @@
-import Dashboard from '@/components/Dashboard';
-import { redirect } from 'next/navigation';
-import { isSignedIn } from '@/lib/auth';
-import { loadDashboard } from '@/lib/data';
+import Link from 'next/link';
+import { AREA_INFO } from '@/lib/areas';
+import { signedInAreas } from '@/lib/auth';
+import ThemeToggle from '@/components/ThemeToggle';
 
-// Read fresh on each visit: the team is small and Supabase is quick.
-// (Static build would also fail a deploy whenever Supabase is unreachable.)
 export const dynamic = 'force-dynamic';
 
-export default async function Page() {
-  if (!isSignedIn()) redirect('/login');
-  let data;
-  try {
-    data = await loadDashboard();
-  } catch (err) {
-    // Shown only to signed-in team members, so the real cause is visible instead of a digest.
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[dashboard] load failed:', message);
-    return (
-      <main className="shell"><div className="band"><div className="inner">
-        <h1>Wingstop UK Social</h1>
-        <div className="alert" data-sev="critical">
-          <div>
-            <strong>The dashboard couldn&apos;t load its data</strong>
-            <p>{message}</p>
-            <p>Usually a missing or wrong setting in Vercel (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY), or the database tables not being set up yet.</p>
+/** Front door: pick an area. Each area has its own password; the master password opens all of them. */
+export default function Home() {
+  const areas = signedInAreas();
+  return (
+    <main className="shell chooser">
+      <header className="hero">
+        <div className="inner">
+          <div className="row" style={{ alignItems: 'center' }}>
+            <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Intelligence</span>
+            <span style={{ display: 'flex', gap: 8 }}><ThemeToggle />{areas.length > 0 && <form method="post" action="/api/logout"><button type="submit" className="chip">Sign out</button></form>}</span>
+          </div>
+          <h1>What do you need?</h1>
+          <p className="take">Pick an area. Each one has its own password, so people only see what they need.</p>
+        </div>
+      </header>
+      <section className="band">
+        <div className="inner">
+          <div className="areagrid">
+            {AREA_INFO.map((a, i) => {
+              const open = areas.includes(a.id);
+              return (
+                <Link key={a.id} href={open ? a.home : `/login?area=${a.id}&next=${encodeURIComponent(a.home)}`} className={`areacard rise d${i + 1}`} data-area={a.id}>
+                  <span className="eyebrow">{open ? 'Unlocked' : '🔒 Password'}</span>
+                  <span className="areaname">{a.label}</span>
+                  <span className="areablurb">{a.blurb}</span>
+                  <span className="go">{open ? 'Open →' : 'Unlock →'}</span>
+                </Link>
+              );
+            })}
           </div>
         </div>
-      </div></div></main>
-    );
-  }
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' }); // YYYY-MM-DD, London
-  return <Dashboard data={data} today={today} />;
+      </section>
+    </main>
+  );
 }

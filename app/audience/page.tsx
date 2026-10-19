@@ -1,13 +1,13 @@
 import Audience from '@/components/Audience';
-import { redirect } from 'next/navigation';
-import { isSignedIn } from '@/lib/auth';
+import { requireArea } from '@/lib/auth';
+import TopBar from '@/components/TopBar';
 import { loadAudience } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Our audience · Wingstop UK&I Social' };
 
 export default async function Page() {
-  if (!isSignedIn()) redirect('/login');
+  const areas = requireArea('social', '/audience');
   let data;
   try {
     data = await loadAudience();
@@ -23,5 +23,5 @@ export default async function Page() {
   }
   const now = new Date().toISOString();
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
-  return <Audience data={data} today={today} now={now} />;
+  return <><TopBar areas={areas} /><Audience data={data} today={today} now={now} /></>;
 }

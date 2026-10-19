@@ -1,33 +1,65 @@
 import 'server-only';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
+// Areas are unlocked separately. The master password (DASHBOARD_PASSWORD) opens all of them;
+// each area password opens only its own area, so e.g. the loyalty team can see Flavour Club without seeing social data.
 // Runs in the Node runtime (not edge middleware), so secret env vars are always available.
+export type Area = 'social' | 'competitor' | 'nso' | 'flavour';
+export const AREAS: Area[] = ['social', 'competitor', 'nso', 'flavour'];
+const AREA_ENV: Record<Area, string> = { social: 'SOCIAL_PASSWORD', competitor: 'COMPETITOR_PASSWORD', nso: 'NSO_PASSWORD', flavour: 'FLAVOUR_CLUB_PASSWORD' };
+
 export const SESSION_COOKIE = 'ws_session';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-function password(): string {
-  const p = process.env.DASHBOARD_PASSWORD;
+function master(): string {
+  const p = process.env.DASHBOARD_PASSWORD?.trim();
   if (!p) throw new Error('DASHBOARD_PASSWORD is not set in Vercel');
   return p;
 }
-
-const token = () => createHmac('sha256', password()).update('wssocial-session-v1').digest('hex');
+// Signing key derives from the master password: changing it signs everyone out.
+const key = () => createHash('sha256').update(`wssocial-session-v2:${master()}`).digest();
+const sign = (payload: string) => createHmac('sha256', key()).update(payload).digest('base64url');
 
 function same(a: string, b: string) {
   const x = Buffer.from(a), y = Buffer.from(b);
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-export function passwordMatches(attempt: string): boolean {
-  return same(attempt, password());
+/** Which areas a password opens: all for the master password, one for an area password, none otherwise. */
+export function areasForPassword(attempt: string): Area[] {
+  const a = attempt.trim();
+  if (!a) return [];
+  if (same(a, master())) return [...AREAS];
+  return AREAS.filter((area) => { const p = process.env[AREA_ENV[area]]?.trim(); return !!p && same(a, p); });
 }
 
-export function isSignedIn(): boolean {
+/** Areas unlocked by the current session cookie. */
+export function signedInAreas(): Area[] {
   const c = cookies().get(SESSION_COOKIE)?.value;
-  return !!c && same(c, token());
+  if (!c) return [];
+  const [payload, sig] = c.split('.');
+  if (!payload || !sig || !same(sig, sign(payload))) return [];
+  try {
+    const { a, e } = JSON.parse(Buffer.from(payload, 'base64url').toString()) as { a: Area[]; e: number };
+    if (!e || Date.now() > e) return [];
+    return a.filter((x) => AREAS.includes(x));
+  } catch { return []; }
 }
 
-export function sessionCookie() {
-  return { name: SESSION_COOKIE, value: token(), httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/', maxAge: MAX_AGE };
+export const canView = (area: Area) => signedInAreas().includes(area);
+/** Any area unlocked (used by shared actions such as Sync now). */
+export const isSignedIn = (area?: Area) => (area ? canView(area) : signedInAreas().length > 0);
+
+/** For pages: send to the right sign-in if this area isn't unlocked. */
+export function requireArea(area: Area, path: string): Area[] {
+  const areas = signedInAreas();
+  if (!areas.includes(area)) redirect(`/login?area=${area}&next=${encodeURIComponent(path)}`);
+  return areas;
+}
+
+export function sessionCookie(areas: Area[]) {
+  const payload = Buffer.from(JSON.stringify({ a: [...new Set(areas)], e: Date.now() + MAX_AGE * 1000 })).toString('base64url');
+  return { name: SESSION_COOKIE, value: `${payload}.${sign(payload)}`, httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/', maxAge: MAX_AGE };
 }

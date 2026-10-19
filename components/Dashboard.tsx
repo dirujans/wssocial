@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import type { DashboardData } from '@/lib/data';
 import { headlines, lastCompleteDay, takeaway, windowFor, type ChannelFilter, type Period } from '@/lib/metrics';
 import { socialToplines } from '@/lib/social';
@@ -9,11 +8,11 @@ import { CHANNELS } from '@/lib/types';
 import AlertsList from './AlertsList';
 import ChannelTable from './ChannelTable';
 import CommentsArena from './CommentsArena';
-import CompetitorPanel from './CompetitorPanel';
 import DailyChart from './DailyChart';
 import MentionsPanel from './MentionsPanel';
 import PostWall from './PostWall';
 import PostsTable from './PostsTable';
+import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
 import Toplines from './Toplines';
 import WeeklyOutput from './WeeklyOutput';
@@ -48,15 +47,6 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
     <main className="shell">
       <header className="hero">
         <div className="inner">
-          <div className="row" style={{ alignItems: 'center' }}>
-            <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
-            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience →</Link>
-              <Link href="/competitors" className="chip" style={{ textDecoration: 'none' }}>Competitor watch →</Link>
-              <Link href="/nso" className="chip" style={{ textDecoration: 'none' }}>NSO →</Link>
-              <Link href="/inspo" className="chip" style={{ textDecoration: 'none' }}>Inspo →</Link>
-            </span>
-          </div>
           <h1>Social pulse</h1>
           <p className="take">
             {social ? (
@@ -91,7 +81,6 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
       <PostWall media={data.media} comments={data.comments} from={postsFrom} channel={channel} />
       <CommentsArena comments={data.comments} posts={data.posts} media={data.media} channel={channel} />
       <MentionsPanel mentions={data.mentions} />
-      <CompetitorPanel items={data.competitors} />
       <WeeklyOutput posts={data.posts} today={today} />
 
       <section className="band" id="numbers">
@@ -106,6 +95,7 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
         </div>
       </section>
 
+      <SectionNav sections={[{ id: 'toplines', label: 'Toplines' }, { id: 'posts', label: 'What landed' }, { id: 'comments', label: 'Comments' }, { id: 'mentions', label: 'Mentions' }, { id: 'output', label: 'Weekly output' }, { id: 'numbers', label: 'The numbers' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
         <div className="inner"><p className="cap">Wingstop UK&amp;I internal. Data from Sprout Social, Instagram and TikTok through Windsor.ai, synced daily at 06:30. Mentions and competitor moves come from the morning briefs.</p></div>
       </footer>

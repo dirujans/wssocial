@@ -1,7 +1,8 @@
 'use client';
 
+import SectionNav from './SectionNav';
+
 import { useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { NsoData } from '@/lib/data';
@@ -49,15 +50,6 @@ export default function Nso({ data, today }: { data: NsoData; today: string }) {
     <main className="shell">
       <header className="hero">
         <div className="inner">
-          <div className="row" style={{ alignItems: 'center' }}>
-            <span className="wordmark">Wingstop UK&amp;I<span className="dot" />Social</span>
-            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
-              <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience</Link>
-              <Link href="/competitors" className="chip" style={{ textDecoration: 'none' }}>Competitor watch</Link>
-              <Link href="/inspo" className="chip" style={{ textDecoration: 'none' }}>Inspo</Link>
-            </span>
-          </div>
           <h1>NSO intelligence</h1>
           <p className="take"><b>{open}</b> openings live, <b>{pipeline}</b> in the pipeline.{nextUp ? <> Next up: <b>{nextUp.store}</b>{nextUp.opens_on ? `, ${day(nextUp.opens_on)}` : ', date to confirm'}.</> : null} Local creators, pages, press and city follower lift for every store.</p>
         </div>
@@ -80,6 +72,7 @@ export default function Nso({ data, today }: { data: NsoData; today: string }) {
 
       {o ? <OpeningView key={o.id} o={o} data={data} today={today} onChanged={() => router.refresh()} /> : <section className="band"><div className="inner"><p className="empty">No openings yet. Add one above.</p></div></section>}
 
+      <SectionNav sections={[{ id: 'opening', label: 'The opening' }, { id: 'city-lift', label: 'City lift' }, { id: 'creators', label: 'Local creators' }, { id: 'local-pages', label: 'Local pages' }, { id: 'chatter', label: 'Local chatter' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
         <div className="inner"><p className="cap">Internal. Openings, local pages and creators come from dated public sources (linked) and the team&apos;s own imports. Follower counts carry their source and date; anything without one is unverified. City lift uses Instagram follower counts by city, saved daily from 16 Oct 2026.</p></div>
       </footer>
@@ -98,7 +91,7 @@ function OpeningView({ o, data, today, onChanged }: { o: NsoOpening; data: NsoDa
 
   return (
     <>
-      <section className="band">
+      <section className="band" id="opening">
         <div className="inner">
           <div className="band-head">
             <div>
@@ -120,7 +113,7 @@ function OpeningView({ o, data, today, onChanged }: { o: NsoOpening; data: NsoDa
         </div>
       </section>
 
-      <section className="band">
+      <section className="band" id="city-lift">
         <div className="inner">
           <div className="band-head"><div><span className="eyebrow">Instagram followers who live in {o.city}, daily</span><h2>City lift</h2></div></div>
           {lift.series.length >= 2 ? (
@@ -148,7 +141,7 @@ function OpeningView({ o, data, today, onChanged }: { o: NsoOpening; data: NsoDa
 
       <Creators o={o} creators={creators} onChanged={onChanged} />
 
-      <section className="band">
+      <section className="band" id="local-pages">
         <div className="inner">
           <div className="band-head"><div><span className="eyebrow">Food pages, community groups, press and students in {o.city}</span><h2>Local pages and press</h2></div></div>
           {pages.length === 0 ? <p className="empty">No local pages logged for {o.city} yet. The research pass covers each new opening as it&apos;s added.</p> : (
@@ -157,7 +150,7 @@ function OpeningView({ o, data, today, onChanged }: { o: NsoOpening; data: NsoDa
         </div>
       </section>
 
-      <section className="band">
+      <section className="band" id="chatter">
         <div className="inner">
           <div className="band-head"><div><span className="eyebrow">From the mentions feed, naming {o.city}</span><h2>Local chatter</h2></div></div>
           {mentions.length === 0 ? <p className="empty">No mentions naming {o.city} in the last six months. The morning report adds local coverage as it finds it.</p> : (
@@ -215,7 +208,7 @@ function Creators({ o, creators, onChanged }: { o: NsoOpening; creators: NsoCrea
   };
 
   return (
-    <section className="band">
+    <section className="band" id="creators">
       <div className="inner">
         <div className="band-head">
           <div><span className="eyebrow">Scored for fit: reach, engagement, audience, content, safety · {creators.length} found · {shortlist.length} shortlisted</span><h2>Local creators</h2></div>

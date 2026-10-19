@@ -6,7 +6,7 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 
 /** Add or update an opening. */
 export async function POST(req: Request) {
-  if (!isSignedIn()) return Response.json({ ok: false, error: 'Sign in first' }, { status: 401 });
+  if (!isSignedIn('nso')) return Response.json({ ok: false, error: 'Sign in first' }, { status: 401 });
   const b = await req.json().catch(() => null) as Record<string, string | null> | null;
   if (!b?.store || !b?.city) return Response.json({ ok: false, error: 'Store and city are required' }, { status: 400 });
   const row = {
