@@ -8,6 +8,7 @@ import { replyBank } from '@/lib/audience';
 import { trendFit, type TikTokVideo } from '@/lib/tiktok';
 import { TikTokModal } from './CompetitorTikTok';
 import { CHANNEL_COLOUR, compact, day, int, pct, safeHref } from './format';
+import { LphFooter } from './Brand';
 
 type Filter = 'ours' | 'maybe' | 'all' | 'skipped';
 const FIT_LABEL = { ours: 'Our territory', maybe: 'Maybe', skip: 'Not ours' } as const;
@@ -197,7 +198,7 @@ export default function Inspo({ data }: { data: InspoData }) {
 
       <SectionNav sections={[{ id: 'trends', label: 'Trending now' }, { id: 'replies', label: 'Reply with a video' }, { id: 'about-us', label: 'About us' }, { id: 'rivals', label: 'What people pass on' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        <div className="inner"><p className="cap">Internal. UK trending hashtags from TikTok Creative Center and rival TikToks via Apify (free tier), refreshed daily and twice a week. Comments from Instagram and TikTok via Windsor.ai. Fit and reply tags are keyword rules: a pointer to look, never a brief.</p></div>
+        <div className="inner"><p className="cap">Internal. UK trending hashtags from TikTok Creative Center and rival TikToks via Apify (free tier), refreshed daily and twice a week. Comments from Instagram and TikTok via Windsor.ai. Fit and reply tags are keyword rules: a pointer to look, never a brief.</p><LphFooter /></div>
       </footer>
       {open && <TikTokModal v={open} onClose={() => setOpen(null)} />}
     </main>

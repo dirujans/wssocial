@@ -1,6 +1,7 @@
 import 'server-only';
 import { buildAlerts } from './alerts';
 import { runApifyStep } from './apifyJobs';
+import { geocodeStores } from './stores';
 import { supabaseAdmin } from './supabase';
 import { fetchAccountDays, fetchAudience, fetchComments, fetchCompetitorSocial, fetchMedia, fetchPosts, fetchProfileDays } from './windsor';
 
@@ -98,6 +99,8 @@ export async function runSync(part: SyncPart = 'all'): Promise<SyncResult> {
 
   // Apify scrapes (competitor TikTok, UK trends): collect finished runs, start due ones. Never fails the sync.
   if (intel) { try { detail.apify = await runApifyStep(); } catch (e) { errors.push(`Apify: ${(e as Error).message}`); } }
+  // New Flavour Club stores (from Bitly) get placed on the scans map; quick, capped, and never blocks the sync.
+  if (intel) { try { detail.stores = await geocodeStores(10); } catch (e) { errors.push(`Store places: ${(e as Error).message}`); } }
   // Skipped sources are not failures.
   for (let i = errors.length - 1; i >= 0; i--) if (errors[i].includes('__skipped__')) errors.splice(i, 1);
   detail.part = part;

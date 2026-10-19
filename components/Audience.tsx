@@ -8,6 +8,7 @@ import CountUp from './CountUp';
 import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
 import { CHANNEL_COLOUR, compact, day, int, pct, safeHref } from './format';
+import { LphFooter } from './Brand';
 
 type Win = 7 | 30 | 60;
 type FSort = 'talked' | 'loved' | 'divisive';
@@ -303,7 +304,7 @@ export default function Audience({ data, today, now }: { data: AudienceData; tod
 
       <SectionNav sections={[{ id: 'following', label: 'Following' }, { id: 'last-day', label: 'Last 24 hours' }, { id: 'saying', label: 'What they say' }, { id: 'flavours', label: 'Flavour pulse' }, { id: 'mentions', label: 'Unprompted' }, { id: 'who', label: 'Who we reach' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        <div className="inner"><p className="cap">Internal. Comments, totals and demographics from Instagram and TikTok via Windsor.ai, synced daily. Sentiment and flavour tags are keyword rules. Unprompted mentions come from the 07:47 morning report, which searches TikTok, Reddit, reviews, press and X.</p></div>
+        <div className="inner"><p className="cap">Internal. Comments, totals and demographics from Instagram and TikTok via Windsor.ai, synced daily. Sentiment and flavour tags are keyword rules. Unprompted mentions come from the 07:47 morning report, which searches TikTok, Reddit, reviews, press and X.</p><LphFooter /></div>
       </footer>
     </main>
   );

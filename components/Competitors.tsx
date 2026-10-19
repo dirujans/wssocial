@@ -10,6 +10,7 @@ import CompetitorTikTok from './CompetitorTikTok';
 import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
 import { compact, day, int, safeHref, signedInt } from './format';
+import { LphFooter } from './Brand';
 
 type Win = 7 | 30 | 60;
 type Sort = 'multiple' | 'engagement' | 'per1k' | 'newest';
@@ -206,7 +207,7 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
 
       <SectionNav sections={[{ id: 'scoreboard', label: 'Scoreboard' }, { id: 'growth', label: 'Growth' }, { id: 'tiktok', label: 'TikTok' }, { id: 'viral', label: 'Instagram breakouts' }, { id: 'announcements', label: 'Announcements' }, { id: 'canes', label: "Raising Cane's" }, { id: 'buzz', label: 'Buzz' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        <div className="inner"><p className="cap">Internal. Competitor posts are public Instagram data through Windsor.ai (Instagram Public connector); add or remove handles there. Moves and buzz come from the daily briefs, which search news, trade press and public social. Figures appear only where a source states them.</p></div>
+        <div className="inner"><p className="cap">Internal. Competitor posts are public Instagram data through Windsor.ai (Instagram Public connector); add or remove handles there. Moves and buzz come from the daily briefs, which search news, trade press and public social. Figures appear only where a source states them.</p><LphFooter /></div>
       </footer>
 
       {open && <PostModal p={open} onClose={() => setOpen(null)} />}

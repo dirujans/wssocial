@@ -100,16 +100,21 @@ export function mapFcEntries(items: Row[], platform: 'TikTok' | 'Instagram'): Om
 }
 
 // ---- Sign-up traffic (Bitly) ----
-export type LinkChannel = 'TikTok' | 'Instagram' | 'Table tents' | 'A-boards' | 'Receipts' | 'Other';
+/** Known labels; any other utm_source shows under its own name ("digital_screen" becomes "Digital screen"). */
+export type LinkChannel = string;
 export const SOCIAL_CHANNELS: LinkChannel[] = ['TikTok', 'Instagram'];
 export const INSTORE_CHANNELS: LinkChannel[] = ['Table tents', 'A-boards', 'Receipts'];
+export const isSocial = (c: LinkChannel) => SOCIAL_CHANNELS.includes(c);
+export const isInstore = (c: LinkChannel) => !isSocial(c) && c !== 'Other';
 /** Links made without UTM tags, mapped by their Bitly title. Add to this when a new untagged link appears. */
 const UNTAGGED: Record<string, LinkChannel> = { 'bit.ly/4ykeSfR': 'Instagram', 'bit.ly/4s0z9W0': 'TikTok' };
-const SOURCE: Record<string, LinkChannel> = { tiktok: 'TikTok', instagram: 'Instagram', table_tent: 'Table tents', aboard: 'A-boards', receipt: 'Receipts' };
+const SOURCE: Record<string, LinkChannel> = { tiktok: 'TikTok', instagram: 'Instagram', table_tent: 'Table tents', aboard: 'A-boards', receipt: 'Receipts', small_bag: 'Small bags', large_bag: 'Large bags' };
+const label = (src: string) => { const t = src.replace(/[_-]+/g, ' ').trim(); return t ? t[0].toUpperCase() + t.slice(1) : ''; };
 
 const params = (u: string | null | undefined) => { try { return new URL(String(u ?? '')).searchParams; } catch { return new URLSearchParams(); } };
 export function linkChannel(bitlink: string, destination: string | null | undefined): LinkChannel {
-  return SOURCE[(params(destination).get('utm_source') ?? '').toLowerCase()] ?? UNTAGGED[bitlink] ?? 'Other';
+  const src = (params(destination).get('utm_source') ?? '').toLowerCase();
+  return SOURCE[src] ?? UNTAGGED[bitlink] ?? (src ? label(src) : 'Other');
 }
 /** Store from a table-tent destination: restaurant_name (underscores to spaces, known typos fixed) and the store code in utm_content. */
 export function linkStore(destination: string | null | undefined): { store: string; code: string | null } | null {
@@ -141,13 +146,17 @@ export function linkSummary(rows: FcLinkDay[], from: string): LinkSummary {
     const s = c === 'Table tents' ? linkStore(r.destination) : null;
     if (s) { const k = s.code ?? s.store; const x = st.get(k) ?? { ...s, total: 0, latest: 0 }; x.total += r.total; if (r.day === latestDay) x.latest += r.total; st.set(k, x); }
   }
-  const order: LinkChannel[] = [...SOCIAL_CHANNELS, ...INSTORE_CHANNELS, 'Other'];
-  const channels = order.map((channel) => ({ channel, ...(ch.get(channel) ?? { total: 0, latest: 0 }) }));
-  const sumOf = (cs: LinkChannel[]) => channels.filter((c) => cs.includes(c.channel)).reduce((s, c) => s + c.total, 0);
+  // Social first (always shown), then every in-store placement by size, known ones always present; Other last.
+  const names = new Set<LinkChannel>([...SOCIAL_CHANNELS, ...INSTORE_CHANNELS, ...ch.keys()]);
+  const channels = [...names].map((channel) => ({ channel, ...(ch.get(channel) ?? { total: 0, latest: 0 }) }))
+    .sort((a, b) => (isSocial(a.channel) ? 0 : a.channel === 'Other' ? 2 : 1) - (isSocial(b.channel) ? 0 : b.channel === 'Other' ? 2 : 1) || (isSocial(a.channel) ? 0 : b.total - a.total));
+  const sumOf = (f: (c: LinkChannel) => boolean) => channels.filter((c) => f(c.channel)).reduce((s, c) => s + c.total, 0);
   return {
     channels, latestDay,
     days: [...dm.entries()].map(([day, v]) => ({ day, ...v })).sort((a, b) => a.day.localeCompare(b.day)),
     stores: [...st.values()].sort((a, b) => b.total - a.total),
-    social: sumOf(SOCIAL_CHANNELS), instore: sumOf(INSTORE_CHANNELS),
+    social: sumOf(isSocial), instore: sumOf(isInstore),
   };
 }
+
+export interface FcStore { code: string; name: string; place: string | null; region: string | null; lat: number | null; lng: number | null }

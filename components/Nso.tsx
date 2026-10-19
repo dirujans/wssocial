@@ -9,6 +9,7 @@ import type { NsoData } from '@/lib/data';
 import { cityLift, computeFit, daysBetween, parseCreatorCsv, type Fit } from '@/lib/nso';
 import type { NsoCreator, NsoOpening, NsoPage } from '@/lib/types';
 import { compact, day, int, pct, safeHref, signedInt } from './format';
+import { LphFooter } from './Brand';
 
 const STATUS_COL: Record<string, string> = { open: 'var(--opal)', announced: 'var(--lemon)', planned: 'var(--line-2)' };
 const TIER_COL: Record<string, string> = { S: 'var(--opal-hi)', A: 'var(--opal)', B: 'var(--hawaiian)', C: 'var(--lemon)', D: 'var(--atomic)' };
@@ -74,7 +75,7 @@ export default function Nso({ data, today }: { data: NsoData; today: string }) {
 
       <SectionNav sections={[{ id: 'opening', label: 'The opening' }, { id: 'city-lift', label: 'City lift' }, { id: 'creators', label: 'Local creators' }, { id: 'local-pages', label: 'Local pages' }, { id: 'chatter', label: 'Local chatter' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        <div className="inner"><p className="cap">Internal. Openings, local pages and creators come from dated public sources (linked) and the team&apos;s own imports. Follower counts carry their source and date; anything without one is unverified. City lift uses Instagram follower counts by city, saved daily from 16 Oct 2026.</p></div>
+        <div className="inner"><p className="cap">Internal. Openings, local pages and creators come from dated public sources (linked) and the team&apos;s own imports. Follower counts carry their source and date; anything without one is unverified. City lift uses Instagram follower counts by city, saved daily from 16 Oct 2026.</p><LphFooter /></div>
       </footer>
     </main>
   );

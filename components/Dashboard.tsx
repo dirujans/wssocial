@@ -17,6 +17,7 @@ import SyncButton from './SyncButton';
 import Toplines from './Toplines';
 import WeeklyOutput from './WeeklyOutput';
 import { signedPct } from './format';
+import { LphFooter } from './Brand';
 
 export default function Dashboard({ data, today }: { data: DashboardData; today: string }) {
   const [period, setPeriod] = useState<Period>(28);
@@ -97,7 +98,7 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
 
       <SectionNav sections={[{ id: 'toplines', label: 'Toplines' }, { id: 'posts', label: 'What landed' }, { id: 'comments', label: 'Comments' }, { id: 'mentions', label: 'Mentions' }, { id: 'output', label: 'Weekly output' }, { id: 'numbers', label: 'The numbers' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        <div className="inner"><p className="cap">Wingstop UK&amp;I internal. Data from Sprout Social, Instagram and TikTok through Windsor.ai, synced daily at 06:30. Mentions and competitor moves come from the morning briefs.</p></div>
+        <div className="inner"><p className="cap">Wingstop UK&amp;I internal. Data from Sprout Social, Instagram and TikTok through Windsor.ai, synced daily at 06:30. Mentions and competitor moves come from the morning briefs.</p><LphFooter /></div>
       </footer>
     </main>
   );

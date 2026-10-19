@@ -417,3 +417,44 @@ details.card[open] > summary { margin-bottom: 6px; }
 .fc-hero::before { background:
   linear-gradient(68deg, transparent 0 62%, rgba(0,167,138,.85) 62% 70%, transparent 70% 100%),
   linear-gradient(64deg, transparent 0 74%, rgba(0,167,138,.45) 74% 86%, transparent 86% 100%) !important; }
+
+/* Flavour Club scans: map + leaderboard */
+.scans-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+@media (max-width: 960px) { .scans-grid { grid-template-columns: 1fr; } }
+.scanmap { height: 540px; width: 100%; background: var(--chip); }
+@media (max-width: 640px) { .scanmap { height: 420px; } }
+.scanmap .leaflet-tooltip { font-family: inherit; font-size: .8rem; }
+.podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+@media (max-width: 520px) { .podium { grid-template-columns: 1fr; } }
+.podium-card { all: unset; cursor: pointer; display: grid; gap: 4px; padding: 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
+.podium-card.p1 { background: linear-gradient(160deg, rgba(255,207,0,.28), var(--panel) 75%); border-color: var(--lemon); }
+.podium-card.p2 { background: linear-gradient(160deg, rgba(0,167,138,.22), var(--panel) 75%); }
+.podium-card.p3 { background: linear-gradient(160deg, rgba(255,122,0,.2), var(--panel) 75%); }
+.podium-card[aria-pressed="true"] { outline: 2px solid var(--lemon); }
+.podium-card:focus-visible { outline: 2px solid var(--opal); }
+.podium-rank { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .75; }
+.podium-name { font-weight: 800; line-height: 1.15; }
+.podium-n { font-style: italic; font-weight: 900; font-stretch: 62%; font-size: 2.2rem; line-height: .9; font-variant-numeric: tabular-nums; }
+.board { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 2px; }
+.board button { all: unset; cursor: pointer; display: grid; grid-template-columns: 2rem minmax(0, 1fr) minmax(3rem, 30%) 3.2rem; gap: 10px; align-items: center; width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 8px; font-size: .85rem; }
+.board button:hover, .board button[aria-pressed="true"] { background: var(--chip); }
+.board button:focus-visible { outline: 2px solid var(--opal); }
+.board .r { opacity: .6; font-variant-numeric: tabular-nums; }
+.board .n { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board .bar { height: 8px; border-radius: 4px; background: var(--chip); overflow: hidden; display: flex; }
+.board .bar i { background: var(--opal); display: block; }
+.board .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+@media (max-width: 520px) { .board button { grid-template-columns: 1.6rem minmax(0, 1fr) 18% 2.8rem; } }
+
+/* Brand marks */
+.brandmark { display: inline-flex; align-items: center; text-decoration: none; color: inherit; flex: none; }
+.brandmark img { max-width: none; }
+.lph { display: inline-flex; align-items: center; opacity: .72; }
+.lph img { display: block; }
+.lph-on-light { display: none !important; }
+:root[data-theme="light"] .lph-on-dark { display: none !important; }
+:root[data-theme="light"] .lph-on-light { display: block !important; }
+.lph-foot { display: flex; align-items: center; gap: 10px; font-size: .75rem; opacity: .75; margin: 10px 0 0; }
+.fc-logo { height: clamp(56px, 9vw, 104px); width: auto; display: block; margin: 8px 0 6px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 640px) { .topbar .lph { display: none; } }

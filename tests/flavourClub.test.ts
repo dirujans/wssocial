@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyFc, isFcPost, linkChannel, linkStore, linkSummary, mapFcEntries, opportunities } from '../lib/flavourClub';
 import type { Comment } from '../lib/types';
+import { pickPlace } from '../lib/stores';
 
 const c = (text: string, likes = 1): Comment => ({ comment_id: text, platform: 'Instagram', text, likes, replies: null, author: null, commented_at: null, post_date: '2026-10-19', post_key: 'k', post_link: null, theme: 'Other' });
 
@@ -63,4 +64,22 @@ test('linkSummary splits social and in-store, ranks stores and drops test links'
   assert.equal(s.social, 210); assert.equal(s.instore, 55); assert.equal(s.latestDay, '2026-10-19');
   assert.deepEqual(s.stores[0], { store: 'A', code: '1', total: 55, latest: 50 });
   assert.equal(s.days.length, 2);
+});
+
+test('pickPlace prefers the exact name in the hinted region, then the bigger settlement', () => {
+  const places = [
+    { name_1: 'Stratford', local_type: 'Suburban Area', region: 'London', latitude: 51.54, longitude: -0.0 },
+    { name_1: 'Stratford', local_type: 'Village', region: 'South West', latitude: 50.9, longitude: -1.8 },
+    { name_1: 'Stratford-upon-Avon', local_type: 'Town', region: 'West Midlands', latitude: 52.19, longitude: -1.7 },
+  ];
+  assert.equal(pickPlace(places, { q: 'Stratford', region: /London/ })?.latitude, 51.54);
+  assert.equal(pickPlace(places, { q: 'Stratford' })?.latitude, 51.54);
+  assert.equal(pickPlace(places, { q: 'Nowhere' }), null);
+});
+
+test('unknown QR labels show under their own name and count as in-store', () => {
+  assert.equal(linkChannel('bit.ly/q', 'https://flavourclub.co.uk/?utm_source=digital_screen&utm_medium=qr'), 'Digital screen');
+  const s = linkSummary([{ day: '2026-10-20', bitlink: 'bit.ly/q', destination: 'https://x.co/?utm_source=digital_screen', clicks: 0, scans: 7, total: 7 }], '2026-10-19');
+  assert.equal(s.instore, 7);
+  assert.ok(s.channels.some((c) => c.channel === 'Digital screen' && c.total === 7));
 });

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AREA_INFO, type AreaId } from '@/lib/areas';
 import ThemeToggle from './ThemeToggle';
+import { FlavourClubMark, LphMark, WingstopMark } from './Brand';
 
 /** Sticky top bar on every page: area switcher (locked areas show a lock), pages within the area, theme switch. */
 export default function TopBar({ areas }: { areas: AreaId[] }) {
@@ -15,7 +16,7 @@ export default function TopBar({ areas }: { areas: AreaId[] }) {
   return (
     <header className="topbar">
       <div className="inner">
-        <Link href="/" className="wordmark" style={{ textDecoration: 'none', color: 'inherit' }}>WS<span className="dot" />UK&amp;I</Link>
+        <Link href="/" className="brandmark" aria-label="All areas">{current?.id === 'flavour' ? <FlavourClubMark height={30} /> : <WingstopMark height={30} />}</Link>
         <nav className="areas" aria-label="Areas and pages">
           {shown.map((a) => {
             const open = areas.includes(a.id);
@@ -29,6 +30,7 @@ export default function TopBar({ areas }: { areas: AreaId[] }) {
           {current && current.pages.length > 1 && current.pages.map((p) => <Link key={p.href} href={p.href} className="subpage" aria-current={p.href === path ? 'page' : undefined}>{p.label}</Link>)}
         </nav>
         <span className="tb-right">
+          <LphMark height={16} />
           <ThemeToggle />
           <form method="post" action="/api/logout"><button type="submit" className="chip" title="Sign out on this device">Sign out</button></form>
         </span>

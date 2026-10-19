@@ -15,7 +15,7 @@ Read this first in any new session. It is the handover: what exists, where it li
 - Areas and passwords (`lib/auth.ts`, `lib/areas.ts`): `/` is a public chooser (Social, Competitor, NSO, Flavour Club). Each area has its own password in Vercel env: SOCIAL_PASSWORD, COMPETITOR_PASSWORD, NSO_PASSWORD, FLAVOUR_CLUB_PASSWORD. DASHBOARD_PASSWORD is the master and opens every area. Signing into more areas adds to one HMAC cookie (`ws_session`). A Flavour Club-only sign-in sees only the Flavour Club tab: loyalty is kept apart from BAU social on purpose. Never commit passwords.
 - Every page: sticky top bar (area tabs, sub-pages, light/dark toggle saved in localStorage `ws-theme`, sign out) and a "Jump to" section nav (`components/SectionNav.tsx`: rail on wide screens, floating button on smaller ones). Theme tokens in `app/globals.css` (`:root` dark, `[data-theme=light]`).
 - Pages:
-  - `/flavour-club` (Flavour Club area) Loyalty launched 19 Oct 2026: pulse, club posts, what people say (themes, topics), questions to answer (mark answered), opportunities, #wingstopflavourclub entries (shortlist, winner, skip), press and online, loyalty landscape. Sign-up traffic section (`components/FcTraffic.tsx`): Bitly clicks and QR scans, TikTok vs Instagram links head to head, in-store (table tents per store, A-boards, receipts), daily columns. Logic in `lib/flavourClub.ts` (`linkChannel` reads utm_source; untagged links mapped in `UNTAGGED`); tables `fc_entries`, `fc_marks`, `fc_link_days`; mentions with `topic = 'flavour_club'`.
+  - `/flavour-club` (Flavour Club area) Loyalty launched 19 Oct 2026: pulse, club posts, what people say (themes, topics), questions to answer (mark answered), opportunities, #wingstopflavourclub entries (shortlist, winner, skip), press and online, loyalty landscape. Sign-up traffic section (`components/FcTraffic.tsx`): Bitly clicks and QR scans, TikTok vs Instagram links head to head, in-store (table tents per store, A-boards, receipts), daily columns. Scans section (`components/FcScans.tsx`, `components/ScanMap.tsx`): placements (any utm_source label shows on its own), store leaderboard with podium, Leaflet heat map (CARTO tiles), stores with no scans; periods all time, since launch, 14 days. Stores in `fc_stores`, placed at area level by `lib/stores.ts` (postcodes.io OS Open Names; shopping-centre overrides in `STORE_PLACE`), new ones geocoded by the intel sync or `/api/apify/probe?geocode=stores`. Logic in `lib/flavourClub.ts` (`linkChannel` reads utm_source; untagged links mapped in `UNTAGGED`); tables `fc_entries`, `fc_marks`, `fc_link_days`; mentions with `topic = 'flavour_club'`.
   - `/social` (Social area) Our channels: shares, saves, reposts toplines, post wall (playable), comments arena, mentions, weekly output, Sprout numbers
   - `/audience` (Social) Our audience: following, last full day, mood and comment themes, flavour pulse (10 core + Hot Honey + Sriracha Hot Honey), unprompted mentions, demographics
   - `/competitors` (Competitor) Competitor watch: scoreboard, growth over time, breakouts wall, announcements per brand, Raising Cane's tracker, buzz
@@ -23,13 +23,13 @@ Read this first in any new session. It is the handover: what exists, where it li
   - `/inspo` (Social) Inspo: UK trending hashtags filtered ours/maybe/skip (team marks saved), sounds in rivals' TikToks, reply-with-video bank, creator content about us, rivals' highest pass-on TikToks
 - Repo: github.com/dirujans/wssocial (main deploys to Vercel automatically)
 - Vercel project `prj_JPOuJzW1RWATKyA0aM4ZdcsnJbNL` (Hobby). Vercel Authentication is still on; Diri hasn't decided whether to turn it off.
-- Supabase project `ycttedwwcsjakieisnkb`. Migrations in `supabase/migrations/` (0001 to 0007), all applied.
+- Supabase project `ycttedwwcsjakieisnkb`. Migrations in `supabase/migrations/` (0001 to 0008), all applied.
 
 ## Stack and code map
 - Next.js 14 App Router, Recharts, Supabase (service role, server only), HMAC cookie sign-in (`lib/auth.ts`).
-- Brand: black and white lead, Opal #00A78A, flavour colours as accents. Archivo (wdth axis) stands in for Roc Grotesk until font files arrive.
+- Brand: black and white lead, Opal #00A78A, flavour colours as accents. Logos in `public/brand` via `components/Brand.tsx`: Wingstop (white outline SVG, from Diri's vector) leads the top bar, chooser and sign-in; the Flavour Club lock-up replaces it on the Flavour Club area only; LPH (Lemon Pepper Holdings) is subtle: top right of the bar (hidden on phones) and every footer. Archivo (wdth axis) stands in for Roc Grotesk until font files arrive.
 - `lib/windsor.ts` all Windsor fetchers; `lib/sync.ts` runs them in parallel and upserts (one failing source never blocks the rest; every run logged to `sync_log`).
-- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`. Tests: `npm test` (32 passing). Types: `npm run typecheck`.
+- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`. Tests: `npm test` (34 passing). Types: `npm run typecheck`.
 - Loaders in `lib/data.ts`; one client component per page in `components/`.
 - Local builds in the Claude workspace: Google Fonts is blocked, so stub `next/font` in `app/layout.tsx` for the build and restore it after (check `grep next/font app/layout.tsx`).
 
@@ -70,4 +70,5 @@ Read this first in any new session. It is the handover: what exists, where it li
 2. Google reviews per store (Windsor `google_my_business`), paid against organic (Meta and TikTok Ads), a moments calendar.
 3. Biggest gap: no business number. Connect Flavour Club sign-ups, app orders or weekly store sales so social can be read against sales.
 4. Confirm the UK core ten flavour list in `lib/audience.ts` with Diri.
-5. Roc Grotesk font files and the white Wingstop logo from Diri.
+5. Roc Grotesk font files from Diri. (Logos received 19 Oct.)
+6. Bitly history backfilled from 17 Jun 2026. 22 Sep shows one scan on nearly every table tent: likely a test sweep.
