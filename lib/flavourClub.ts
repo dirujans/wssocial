@@ -98,3 +98,56 @@ export function mapFcEntries(items: Row[], platform: 'TikTok' | 'Instagram'): Om
       posted_at: str(i.timestamp) || null, likes: num(i.likesCount), comments: num(i.commentsCount), plays: num(i.videoPlayCount ?? i.videoViewCount), shares: null, thumb_url: str(i.displayUrl) || null, hashtag: FC_HASHTAG };
   });
 }
+
+// ---- Sign-up traffic (Bitly) ----
+export type LinkChannel = 'TikTok' | 'Instagram' | 'Table tents' | 'A-boards' | 'Receipts' | 'Other';
+export const SOCIAL_CHANNELS: LinkChannel[] = ['TikTok', 'Instagram'];
+export const INSTORE_CHANNELS: LinkChannel[] = ['Table tents', 'A-boards', 'Receipts'];
+/** Links made without UTM tags, mapped by their Bitly title. Add to this when a new untagged link appears. */
+const UNTAGGED: Record<string, LinkChannel> = { 'bit.ly/4ykeSfR': 'Instagram', 'bit.ly/4s0z9W0': 'TikTok' };
+const SOURCE: Record<string, LinkChannel> = { tiktok: 'TikTok', instagram: 'Instagram', table_tent: 'Table tents', aboard: 'A-boards', receipt: 'Receipts' };
+
+const params = (u: string | null | undefined) => { try { return new URL(String(u ?? '')).searchParams; } catch { return new URLSearchParams(); } };
+export function linkChannel(bitlink: string, destination: string | null | undefined): LinkChannel {
+  return SOURCE[(params(destination).get('utm_source') ?? '').toLowerCase()] ?? UNTAGGED[bitlink] ?? 'Other';
+}
+/** Store from a table-tent destination: restaurant_name (underscores to spaces, known typos fixed) and the store code in utm_content. */
+export function linkStore(destination: string | null | undefined): { store: string; code: string | null } | null {
+  const p = params(destination); const n = p.get('restaurant_name');
+  if (!n) return null;
+  const store = n.replace(/_/g, ' ').replace(/^Edinburh\b/, 'Edinburgh').replace(/Sheperd's/, "Shepherd's").replace(/Tydfill$/, 'Tydfil');
+  return { store, code: p.get('utm_content') };
+}
+
+export interface FcLinkDay { day: string; bitlink: string; destination: string | null; clicks: number; scans: number; total: number }
+export interface LinkSummary {
+  channels: { channel: LinkChannel; total: number; latest: number }[];
+  days: { day: string; byChannel: Partial<Record<LinkChannel, number>>; total: number }[];
+  stores: { store: string; code: string | null; total: number; latest: number }[];
+  latestDay: string | null;
+  social: number; instore: number;
+}
+/** Roll Bitly link-days up by channel, day and store, from a start day (inclusive). Test links (non-live destinations) are dropped. */
+export function linkSummary(rows: FcLinkDay[], from: string): LinkSummary {
+  const live = rows.filter((r) => r.day >= from && !/wingstop-testing/.test(r.destination ?? ''));
+  const latestDay = live.reduce<string | null>((m, r) => (!m || r.day > m ? r.day : m), null);
+  const ch = new Map<LinkChannel, { total: number; latest: number }>();
+  const dm = new Map<string, { byChannel: Partial<Record<LinkChannel, number>>; total: number }>();
+  const st = new Map<string, { store: string; code: string | null; total: number; latest: number }>();
+  for (const r of live) {
+    const c = linkChannel(r.bitlink, r.destination);
+    const a = ch.get(c) ?? { total: 0, latest: 0 }; a.total += r.total; if (r.day === latestDay) a.latest += r.total; ch.set(c, a);
+    const d = dm.get(r.day) ?? { byChannel: {}, total: 0 }; d.byChannel[c] = (d.byChannel[c] ?? 0) + r.total; d.total += r.total; dm.set(r.day, d);
+    const s = c === 'Table tents' ? linkStore(r.destination) : null;
+    if (s) { const k = s.code ?? s.store; const x = st.get(k) ?? { ...s, total: 0, latest: 0 }; x.total += r.total; if (r.day === latestDay) x.latest += r.total; st.set(k, x); }
+  }
+  const order: LinkChannel[] = [...SOCIAL_CHANNELS, ...INSTORE_CHANNELS, 'Other'];
+  const channels = order.map((channel) => ({ channel, ...(ch.get(channel) ?? { total: 0, latest: 0 }) }));
+  const sumOf = (cs: LinkChannel[]) => channels.filter((c) => cs.includes(c.channel)).reduce((s, c) => s + c.total, 0);
+  return {
+    channels, latestDay,
+    days: [...dm.entries()].map(([day, v]) => ({ day, ...v })).sort((a, b) => a.day.localeCompare(b.day)),
+    stores: [...st.values()].sort((a, b) => b.total - a.total),
+    social: sumOf(SOCIAL_CHANNELS), instore: sumOf(INSTORE_CHANNELS),
+  };
+}

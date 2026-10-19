@@ -15,7 +15,7 @@ Read this first in any new session. It is the handover: what exists, where it li
 - Areas and passwords (`lib/auth.ts`, `lib/areas.ts`): `/` is a public chooser (Social, Competitor, NSO, Flavour Club). Each area has its own password in Vercel env: SOCIAL_PASSWORD, COMPETITOR_PASSWORD, NSO_PASSWORD, FLAVOUR_CLUB_PASSWORD. DASHBOARD_PASSWORD is the master and opens every area. Signing into more areas adds to one HMAC cookie (`ws_session`). A Flavour Club-only sign-in sees only the Flavour Club tab: loyalty is kept apart from BAU social on purpose. Never commit passwords.
 - Every page: sticky top bar (area tabs, sub-pages, light/dark toggle saved in localStorage `ws-theme`, sign out) and a "Jump to" section nav (`components/SectionNav.tsx`: rail on wide screens, floating button on smaller ones). Theme tokens in `app/globals.css` (`:root` dark, `[data-theme=light]`).
 - Pages:
-  - `/flavour-club` (Flavour Club area) Loyalty launched 19 Oct 2026: pulse, club posts, what people say (themes, topics), questions to answer (mark answered), opportunities, #wingstopflavourclub entries (shortlist, winner, skip), press and online, loyalty landscape. Logic in `lib/flavourClub.ts`; tables `fc_entries`, `fc_marks`; mentions with `topic = 'flavour_club'`.
+  - `/flavour-club` (Flavour Club area) Loyalty launched 19 Oct 2026: pulse, club posts, what people say (themes, topics), questions to answer (mark answered), opportunities, #wingstopflavourclub entries (shortlist, winner, skip), press and online, loyalty landscape. Sign-up traffic section (`components/FcTraffic.tsx`): Bitly clicks and QR scans, TikTok vs Instagram links head to head, in-store (table tents per store, A-boards, receipts), daily columns. Logic in `lib/flavourClub.ts` (`linkChannel` reads utm_source; untagged links mapped in `UNTAGGED`); tables `fc_entries`, `fc_marks`, `fc_link_days`; mentions with `topic = 'flavour_club'`.
   - `/social` (Social area) Our channels: shares, saves, reposts toplines, post wall (playable), comments arena, mentions, weekly output, Sprout numbers
   - `/audience` (Social) Our audience: following, last full day, mood and comment themes, flavour pulse (10 core + Hot Honey + Sriracha Hot Honey), unprompted mentions, demographics
   - `/competitors` (Competitor) Competitor watch: scoreboard, growth over time, breakouts wall, announcements per brand, Raising Cane's tracker, buzz
@@ -23,13 +23,13 @@ Read this first in any new session. It is the handover: what exists, where it li
   - `/inspo` (Social) Inspo: UK trending hashtags filtered ours/maybe/skip (team marks saved), sounds in rivals' TikToks, reply-with-video bank, creator content about us, rivals' highest pass-on TikToks
 - Repo: github.com/dirujans/wssocial (main deploys to Vercel automatically)
 - Vercel project `prj_JPOuJzW1RWATKyA0aM4ZdcsnJbNL` (Hobby). Vercel Authentication is still on; Diri hasn't decided whether to turn it off.
-- Supabase project `ycttedwwcsjakieisnkb`. Migrations in `supabase/migrations/` (0001 to 0006), all applied.
+- Supabase project `ycttedwwcsjakieisnkb`. Migrations in `supabase/migrations/` (0001 to 0007), all applied.
 
 ## Stack and code map
 - Next.js 14 App Router, Recharts, Supabase (service role, server only), HMAC cookie sign-in (`lib/auth.ts`).
 - Brand: black and white lead, Opal #00A78A, flavour colours as accents. Archivo (wdth axis) stands in for Roc Grotesk until font files arrive.
 - `lib/windsor.ts` all Windsor fetchers; `lib/sync.ts` runs them in parallel and upserts (one failing source never blocks the rest; every run logged to `sync_log`).
-- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`. Tests: `npm test` (29 passing). Types: `npm run typecheck`.
+- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`. Tests: `npm test` (32 passing). Types: `npm run typecheck`.
 - Loaders in `lib/data.ts`; one client component per page in `components/`.
 - Local builds in the Claude workspace: Google Fonts is blocked, so stub `next/font` in `app/layout.tsx` for the build and restore it after (check `grep next/font app/layout.tsx`).
 
@@ -43,6 +43,12 @@ Read this first in any new session. It is the handover: what exists, where it li
 - Use `T` date presets (e.g. `last_14dT`) or today's posts are missing.
 - Supabase client forces `cache: 'no-store'`: Next's fetch cache otherwise served stale reads inside route handlers.
 
+## Bitly (connected natively as a Claude connector, group Bp18hXuDgTN)
+- No Windsor connector for Bitly. The app has no Bitly token; `fc_link_days` is filled by the scheduled task below using the Bitly connector's export (link_engagements_timeseries, filter destination flavourclub.co.uk).
+- Social links: bit.ly/flavourc-tt, bit.ly/flavourc-ig (both UTM tagged). Untagged: bit.ly/4ykeSfR (IG homepage), bit.ly/4s0z9W0 (TT homepage). In-store: one QR per store (utm_source=table_tent, utm_content=store code, restaurant_name), A-board QR, receipt QR.
+- The team tagged the QR codes 'FlavourClub' in Bitly, but link exports don't see QR tags; filter by destination instead.
+- GA4 not yet connected in Windsor: needed for actual sign-ups.
+
 ## Apify (free plan, $5 a month credit; APIFY_TOKEN in Vercel)
 - Driven by the sync (`lib/apifyJobs.ts`): each sync collects finished runs, then starts due ones. Runs logged in `apify_runs` (cost in `usd`).
 - Cadence (`lib/apifyJobs.ts`): Flavour Club hashtag hunt every ~46h on TikTok (clockworks, hashtags) and Instagram (`apify/instagram-hashtag-scraper`) into `fc_entries`; competitor TikTok and UK trends weekly (~160h). Daily runs need a paid Apify plan.
@@ -53,6 +59,8 @@ Read this first in any new session. It is the handover: what exists, where it li
 
 ## Scheduled tasks (Claude)
 - Daily social report 07:47 London (`trig_01XgA2qvHZRemRMnD9KLADmx`): report to Diri with a Flavour Club section, inserts `mentions` (Flavour Club ones with topic `flavour_club`) and `competitor_items`.
+- Flavour Club Instagram comment top-up 07:32 London (`trig_01GVBeqVTcVagMVmNNd4ei6c`): Windsor MCP to `comments` while Windsor's REST feed lags. Switch off once the sync catches up.
+- Flavour Club link tracking 07:20 London: Bitly export to `fc_link_days`.
 - Diri's own competitor brief 07:59 (`trig_01ADLPb42PW2LbSYc5osREZM`): leave alone.
 - Weekly NSO research Mondays 08:26 (`trig_01KbQNFtvy7xNerx2aQViyjb`): new openings, local pages and creators.
 

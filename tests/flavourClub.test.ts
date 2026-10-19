@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyFc, isFcPost, mapFcEntries, opportunities } from '../lib/flavourClub';
+import { classifyFc, isFcPost, linkChannel, linkStore, linkSummary, mapFcEntries, opportunities } from '../lib/flavourClub';
 import type { Comment } from '../lib/types';
 
 const c = (text: string, likes = 1): Comment => ({ comment_id: text, platform: 'Instagram', text, likes, replies: null, author: null, commented_at: null, post_date: '2026-10-19', post_key: 'k', post_link: null, theme: 'Other' });
@@ -40,4 +40,27 @@ test('mapFcEntries drops loose hashtag matches and our own posts', () => {
     { id: '4', text: 'pick me', hashtags: [{ name: 'wingstopflavourclub' }], authorMeta: { name: 'fan' } },
   ], 'TikTok');
   assert.deepEqual(out.map((o) => o.id), ['tt_4']);
+});
+
+test('linkChannel and linkStore read UTM tags, with untagged links mapped by id', () => {
+  assert.equal(linkChannel('bit.ly/flavourc-tt', 'https://www.flavourclub.co.uk/sign-up?utm_source=tiktok&utm_campaign=x'), 'TikTok');
+  assert.equal(linkChannel('bit.ly/4ykeSfR', 'https://flavourclub.co.uk/'), 'Instagram');
+  assert.equal(linkChannel('bit.ly/zzz', 'https://flavourclub.co.uk/'), 'Other');
+  assert.deepEqual(linkStore('https://flavourclub.co.uk/sign-up?utm_source=table_tent&utm_content=2155&restaurant_name=Edinburh_St_James_Quarter'), { store: 'Edinburgh St James Quarter', code: '2155' });
+  assert.equal(linkStore('https://flavourclub.co.uk/'), null);
+});
+
+test('linkSummary splits social and in-store, ranks stores and drops test links', () => {
+  const tt = 'https://x.co/?utm_source=table_tent&utm_content=1&restaurant_name=A';
+  const s = linkSummary([
+    { day: '2026-10-19', bitlink: 'bit.ly/t', destination: 'https://x.co/?utm_source=tiktok', clicks: 208, scans: 0, total: 208 },
+    { day: '2026-10-19', bitlink: 'bit.ly/i', destination: 'https://x.co/?utm_source=instagram', clicks: 2, scans: 0, total: 2 },
+    { day: '2026-10-19', bitlink: 'bit.ly/a', destination: tt, clicks: 0, scans: 50, total: 50 },
+    { day: '2026-10-18', bitlink: 'bit.ly/a', destination: tt, clicks: 0, scans: 5, total: 5 },
+    { day: '2026-10-19', bitlink: 'bit.ly/x', destination: 'https://wingstop-testing.vercel.app/?utm_source=receipt', clicks: 0, scans: 9, total: 9 },
+    { day: '2026-10-01', bitlink: 'bit.ly/a', destination: tt, clicks: 0, scans: 99, total: 99 },
+  ], '2026-10-06');
+  assert.equal(s.social, 210); assert.equal(s.instore, 55); assert.equal(s.latestDay, '2026-10-19');
+  assert.deepEqual(s.stores[0], { store: 'A', code: '1', total: 55, latest: 50 });
+  assert.equal(s.days.length, 2);
 });
