@@ -22,15 +22,16 @@ Read this first in any new session. It is the handover: what exists, where it li
   - `/competitors` (Competitor) Competitor watch: scoreboard, growth over time, breakouts wall, announcements per brand, Raising Cane's tracker, buzz
   - `/nso` (NSO) NSO intelligence: openings, city follower lift, scored local creators (shared shortlist, Modash CSV import, export), local pages and press, local chatter
   - `/inspo` (Social) Inspo: UK trending hashtags filtered ours/maybe/skip (team marks saved), sounds in rivals' TikToks, reply-with-video bank, creator content about us, rivals' highest pass-on TikToks
+  - `/paid` (Social) Paid: spend by agency, organic/paid/combined views per platform, agency head to head (same platform, same period), did paid help the post (boosts and Spark Ads against unboosted peers), spikes explained (paid, organic or both), campaigns, best ads. `/social` toplines have an Organic | Paid | Combined switch (default Organic) on views and follows.
 - Repo: github.com/dirujans/wssocial (main deploys to Vercel automatically)
 - Vercel project `prj_JPOuJzW1RWATKyA0aM4ZdcsnJbNL` (Hobby). GitHub pushes sometimes reach Vercel late; trigger a deploy from the Vercel connector if needed (forceNew after env changes, since NEXT_PUBLIC_ vars are baked in at build).
-- Supabase project `ycttedwwcsjakieisnkb`. Migrations in `supabase/migrations/` (0001 to 0009), all applied.
+- Supabase project `ycttedwwcsjakieisnkb`. Migrations in `supabase/migrations/` (0001 to 0011), all applied.
 
 ## Stack and code map
 - Next.js 14 App Router, Recharts, Supabase (service role, server only), HMAC cookie sign-in (`lib/auth.ts`).
 - Brand: black and white lead, Opal #00A78A, flavour colours as accents. Logos in `public/brand` via `components/Brand.tsx`: Wingstop (white outline SVG, from Diri's vector) leads the top bar, chooser and sign-in; the Flavour Club lock-up replaces it on the Flavour Club area only; LPH (Lemon Pepper Holdings) is subtle: top right of the bar (hidden on phones) and every footer. Archivo (wdth axis) stands in for Roc Grotesk until font files arrive.
 - `lib/windsor.ts` all Windsor fetchers; `lib/sync.ts` runs them in parallel and upserts (one failing source never blocks the rest; every run logged to `sync_log`).
-- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`. Tests: `npm test` (34 passing). Types: `npm run typecheck`.
+- Pure, tested logic: `lib/social.ts`, `lib/metrics.ts`, `lib/alerts.ts`, `lib/competitors.ts`, `lib/audience.ts`, `lib/nso.ts`, `lib/flavourClub.ts`, `lib/paid.ts`. Tests: `npm test` (40 passing). Types: `npm run typecheck`.
 - Loaders in `lib/data.ts`; one client component per page in `components/`.
 - Local builds in the Claude workspace: Google Fonts is blocked, so stub `next/font` in `app/layout.tsx` for the build and restore it after (check `grep next/font app/layout.tsx`).
 
@@ -44,6 +45,13 @@ Read this first in any new session. It is the handover: what exists, where it li
 - Use `T` date presets (e.g. `last_14dT`) or today's posts are missing.
 - Supabase client forces `cache: 'no-store'`: Next's fetch cache otherwise served stale reads inside route handlers.
 
+## Paid (Windsor `facebook` and `tiktok` ad connectors)
+- Accounts: Meta 3120245488194717 WingstopUK-LPH (Translate Culture, Mas: boosts day-to-day organic), Meta 1339656694773714 WINGSTOP UK - MSQ (SMARTS MSQ), TikTok 7031642344902426625 WINGSTOPUK (Translate Culture monthly budget). MSQ's TikTok account is not connected yet: add it to `TIKTOK_ACCOUNTS` in `lib/paid.ts` once Diri has access, and the head to head picks it up.
+- Agency comes from the account, unless the campaign name starts `MSQ` or `TC |` (`agencyOf`).
+- Table `ads_daily` (day, platform, ad_id, placement), view `ads_by_day` (security_invoker). `lib/adsSync.ts` upserts the last 7 days in the intel sync. Backfilled 17 Jun to 20 Oct 2026; 90-day spend checked against Windsor to within £20 per account.
+- Instagram post-level views and likes are organic only (Meta docs). Instagram account-level daily views include ad views: verified 20 Oct, they track IG ad impressions almost one for one. `igPaidModel` fits account views against IG ad impressions (k capped at 1, needs 21+ days, 10+ ad days, correlation 0.6+) and takes paid out; with no fit, ads are added on top.
+- TikTok account plays include Spark Ad plays (every TikTok ad so far is Spark), so organic = plays minus Spark plays. TikTok paid follows come from the ad account; Meta reports no Instagram follows from ads, so Instagram follows can't be split.
+
 ## Bitly (connected natively as a Claude connector, group Bp18hXuDgTN)
 - No Windsor connector for Bitly. The app has no Bitly token; `fc_link_days` is filled by the scheduled task below using the Bitly connector's export (link_engagements_timeseries, filter destination flavourclub.co.uk).
 - Social links: bit.ly/flavourc-tt, bit.ly/flavourc-ig (both UTM tagged). Untagged: bit.ly/4ykeSfR (IG homepage), bit.ly/4s0z9W0 (TT homepage). In-store: one QR per store (utm_source=table_tent, utm_content=store code, restaurant_name), A-board QR, receipt QR.
@@ -55,7 +63,7 @@ Read this first in any new session. It is the handover: what exists, where it li
 - Cadence (`lib/apifyJobs.ts`): Flavour Club hashtag hunt every ~46h on TikTok (clockworks, hashtags) and Instagram (`apify/instagram-hashtag-scraper`) into `fc_entries`; competitor TikTok and UK trends weekly (~160h). Daily runs need a paid Apify plan.
 - `clockworks/tiktok-scraper`: latest 12 videos for `TIKTOK_HANDLES` in `lib/tiktok.ts` (wingstopuk, kfc_uki, nandosuk, mcdonaldsuk, popeyesuk, daveshotchickenuk, raisingcanes, raisingcanes_uk). Gives plays, likes, comments, shares, saves. About $0.32 a run (~$0.007 a video). Note: TikTok "kfcuki" is an unrelated fan account; KFC is kfc_uki. Slim Chickens has no UK TikTok we could find. raisingcanes_uk is unverified.
 - `data_xplorer/tiktok-trends`: top 40 UK hashtags, 7 days. ~$0.10 a run. TikTok no longer exposes the UK sounds chart to these tools.
-- `/api/apify/probe` is a test route guarded by a short-lived key in `ops_keys` (insert one with an expiry; never commit it). `?only=tiktok&input=<json>` tests an actor, `?run=jobs` runs the step, `?abort=<runId>` stops a run.
+- `/api/apify/probe` is a test route guarded by a short-lived key in `ops_keys` (insert one with an expiry; never commit it). `?only=tiktok&input=<json>` tests an actor, `?run=jobs` runs the step, `?abort=<runId>` stops a run. It returns 400 unless `only` is given (it used to run every actor by default). `?ads=last_20dT` or `?ads=YYYY-MM-DD..YYYY-MM-DD` backfills ads (keep ranges to about 20 days to stay inside 60s); `?geocode=stores` places new stores.
 - `apify/instagram-scraper` was too slow to start inside the 60s limit; not used.
 
 ## Scheduled tasks (Claude)
