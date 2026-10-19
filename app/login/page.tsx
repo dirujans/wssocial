@@ -16,7 +16,8 @@ export default function Login({ searchParams }: { searchParams: { error?: string
         <input id="password" name="password" type="password" autoComplete="current-password" required autoFocus />
         {area && <input type="hidden" name="area" value={area.id} />}
         {searchParams.next && <input type="hidden" name="next" value={searchParams.next} />}
-        {searchParams.error && <p className="cap" role="alert" style={{ color: 'var(--bad)', margin: 0 }}>That password doesn&apos;t open {area ? area.label : 'this'}. Try again.</p>}
+        {searchParams.error === 'locked' && <p className="cap" role="alert" style={{ color: 'var(--bad)', margin: 0 }}>Too many wrong passwords. Sign-in is paused on this connection for 15 minutes.</p>}
+        {searchParams.error && searchParams.error !== 'locked' && <p className="cap" role="alert" style={{ color: 'var(--bad)', margin: 0 }}>That password doesn&apos;t open {area ? area.label : 'this'}. Try again.</p>}
         <button type="submit" className="chip primary" style={{ padding: '12px 14px', fontSize: '.9rem' }}>Unlock</button>
         <Link href="/" className="cap" style={{ textAlign: 'center' }}>Back to all areas</Link>
         <LphFooter />

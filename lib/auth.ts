@@ -11,7 +11,7 @@ export const AREAS: Area[] = ['social', 'competitor', 'nso', 'flavour'];
 const AREA_ENV: Record<Area, string> = { social: 'SOCIAL_PASSWORD', competitor: 'COMPETITOR_PASSWORD', nso: 'NSO_PASSWORD', flavour: 'FLAVOUR_CLUB_PASSWORD' };
 
 export const SESSION_COOKIE = 'ws_session';
-const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+const MAX_AGE = 60 * 60 * 24 * 7; // 7 days, then sign in again
 
 function master(): string {
   const p = process.env.DASHBOARD_PASSWORD?.trim();
@@ -35,18 +35,25 @@ export function areasForPassword(attempt: string): Area[] {
   return AREAS.filter((area) => { const p = process.env[AREA_ENV[area]]?.trim(); return !!p && same(a, p); });
 }
 
-/** Areas unlocked by the current session cookie. */
-export function signedInAreas(): Area[] {
+/** True when the password is the master one (used to show the access log). */
+export const isMasterPassword = (attempt: string) => !!attempt.trim() && same(attempt.trim(), master());
+
+function session(): { a: Area[]; m: boolean } | null {
   const c = cookies().get(SESSION_COOKIE)?.value;
-  if (!c) return [];
+  if (!c) return null;
   const [payload, sig] = c.split('.');
-  if (!payload || !sig || !same(sig, sign(payload))) return [];
+  if (!payload || !sig || !same(sig, sign(payload))) return null;
   try {
-    const { a, e } = JSON.parse(Buffer.from(payload, 'base64url').toString()) as { a: Area[]; e: number };
-    if (!e || Date.now() > e) return [];
-    return a.filter((x) => AREAS.includes(x));
-  } catch { return []; }
+    const { a, e, m } = JSON.parse(Buffer.from(payload, 'base64url').toString()) as { a: Area[]; e: number; m?: boolean };
+    if (!e || Date.now() > e) return null;
+    return { a: a.filter((x) => AREAS.includes(x)), m: !!m };
+  } catch { return null; }
 }
+
+/** Areas unlocked by the current session cookie. */
+export const signedInAreas = (): Area[] => session()?.a ?? [];
+/** Signed in with the master password at some point in this session. */
+export const isMasterSession = () => !!session()?.m;
 
 export const canView = (area: Area) => signedInAreas().includes(area);
 /** Any area unlocked (used by shared actions such as Sync now). */
@@ -59,7 +66,7 @@ export function requireArea(area: Area, path: string): Area[] {
   return areas;
 }
 
-export function sessionCookie(areas: Area[]) {
-  const payload = Buffer.from(JSON.stringify({ a: [...new Set(areas)], e: Date.now() + MAX_AGE * 1000 })).toString('base64url');
+export function sessionCookie(areas: Area[], masterSession = false) {
+  const payload = Buffer.from(JSON.stringify({ a: [...new Set(areas)], e: Date.now() + MAX_AGE * 1000, ...(masterSession ? { m: true } : {}) })).toString('base64url');
   return { name: SESSION_COOKIE, value: `${payload}.${sign(payload)}`, httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/', maxAge: MAX_AGE };
 }

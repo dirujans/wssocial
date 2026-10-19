@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { AREA_INFO } from '@/lib/areas';
-import { signedInAreas } from '@/lib/auth';
+import { isMasterSession, signedInAreas } from '@/lib/auth';
 import ThemeToggle from '@/components/ThemeToggle';
 import { LphFooter, LphMark, WingstopMark } from '@/components/Brand';
 
@@ -36,6 +36,7 @@ export default function Home() {
               );
             })}
           </div>
+          {isMasterSession() && <p className="note" style={{ marginTop: 16 }}><Link href="/access">Access log</Link>: who signed in, when, and to what.</p>}
           <LphFooter />
         </div>
       </section>
