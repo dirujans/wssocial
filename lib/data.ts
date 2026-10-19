@@ -1,4 +1,5 @@
 import 'server-only';
+import type { TikTokAccountDay, TikTokVideo, TrendRow } from './tiktok';
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
 import type { AccountDay, Alert, AudienceDemo, CityDay, NsoCreator, NsoOpening, NsoPage, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
@@ -45,6 +46,8 @@ export async function loadDashboard(): Promise<DashboardData> {
 }
 
 export interface CompetitorData {
+  tiktok: TikTokVideo[];
+  tiktokDays: TikTokAccountDay[];
   posts: CompetitorPost[];
   accounts: CompetitorAccountDay[];
   items: CompetitorItem[];
@@ -54,14 +57,18 @@ export interface CompetitorData {
 /** The competitor page: public Instagram posts (60 days), follower snapshots, and the briefs' moves and buzz (120 days). */
 export async function loadCompetitors(): Promise<CompetitorData> {
   const db = supabaseAdmin();
-  const [p, a, i, s] = await Promise.all([
+  const [p, a, i, s, tv, td] = await Promise.all([
     db.from('competitor_posts').select('*').gte('posted', shiftDay(today(), -120)).order('posted_at', { ascending: false }).limit(2000),
     db.from('competitor_accounts_daily').select('*').gte('date', shiftDay(today(), -90)).order('date'),
     db.from('competitor_items').select('*').or(`posted_on.gte.${shiftDay(today(), -120)},brand.ilike.%cane%`).order('posted_on', { ascending: false }).limit(200),
     db.from('sync_log').select('status,finished_at').order('started_at', { ascending: false }).limit(1),
+    db.from('competitor_tiktok').select('*').gte('posted', shiftDay(today(), -120)).order('posted_at', { ascending: false }).limit(2000),
+    db.from('competitor_tiktok_daily').select('*').gte('date', shiftDay(today(), -90)).order('date'),
   ]);
-  for (const r of [p, a, i, s]) if (r.error) throw new Error(r.error.message);
+  for (const r of [p, a, i, s, tv, td]) if (r.error) throw new Error(r.error.message);
   return {
+    tiktok: (tv.data ?? []) as TikTokVideo[],
+    tiktokDays: (td.data ?? []) as TikTokAccountDay[],
     posts: (p.data ?? []) as CompetitorPost[],
     accounts: (a.data ?? []) as CompetitorAccountDay[],
     items: (i.data ?? []) as CompetitorItem[],
@@ -120,5 +127,32 @@ export async function loadNso(): Promise<NsoData> {
   return {
     openings: (o.data ?? []) as NsoOpening[], creators: (c.data ?? []) as NsoCreator[], pages: (p.data ?? []) as NsoPage[],
     cityDays: (cd.data ?? []) as CityDay[], demo: (d.data ?? []) as AudienceDemo[], mentions: (m.data ?? []) as Mention[],
+  };
+}
+
+export interface InspoData {
+  trends: (TrendRow & { verdict: string | null })[];
+  trendDates: string[];
+  marks: { key: string; verdict: string; note: string | null }[];
+  comments: Comment[];
+  mentions: Mention[];
+  tiktok: TikTokVideo[];
+}
+
+/** Inspo: the latest UK trending hashtags (with the previous day for movement), team verdicts, comments for the reply bank, creator content about us. */
+export async function loadInspo(): Promise<InspoData> {
+  const db = supabaseAdmin();
+  const [t, mk, c, m, tv] = await Promise.all([
+    db.from('tiktok_trends').select('*').gte('date', shiftDay(today(), -14)).order('date', { ascending: false }).order('rank').limit(1000),
+    db.from('inspo_marks').select('key,verdict,note'),
+    db.from('comments').select('*').gte('post_date', shiftDay(today(), -21)).order('likes', { ascending: false }).limit(3000),
+    db.from('mentions').select('*').gte('posted_on', shiftDay(today(), -30)).order('posted_on', { ascending: false }).limit(200),
+    db.from('competitor_tiktok').select('*').gte('posted', shiftDay(today(), -14)).order('plays', { ascending: false }).limit(60),
+  ]);
+  for (const r of [t, mk, c, m, tv]) if (r.error) throw new Error(r.error.message);
+  const rows = (t.data ?? []) as (TrendRow & { verdict: string | null })[];
+  return {
+    trends: rows, trendDates: [...new Set(rows.map((r) => r.date))].sort().reverse(),
+    marks: (mk.data ?? []) as InspoData['marks'], comments: (c.data ?? []) as Comment[], mentions: (m.data ?? []) as Mention[], tiktok: (tv.data ?? []) as TikTokVideo[],
   };
 }

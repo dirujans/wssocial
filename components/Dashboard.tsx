@@ -54,6 +54,7 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
               <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience →</Link>
               <Link href="/competitors" className="chip" style={{ textDecoration: 'none' }}>Competitor watch →</Link>
               <Link href="/nso" className="chip" style={{ textDecoration: 'none' }}>NSO →</Link>
+              <Link href="/inspo" className="chip" style={{ textDecoration: 'none' }}>Inspo →</Link>
             </span>
           </div>
           <h1>Social pulse</h1>

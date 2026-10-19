@@ -7,6 +7,7 @@ import { brandOf, scoreboard, type BrandScore } from '@/lib/competitors';
 import type { CompetitorItem, CompetitorPost } from '@/lib/types';
 import CountUp from './CountUp';
 import { BrandFile, GrowthPanel } from './CompetitorGrowth';
+import CompetitorTikTok from './CompetitorTikTok';
 import SyncButton from './SyncButton';
 import { compact, day, int, safeHref, signedInt } from './format';
 
@@ -71,6 +72,7 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
               <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
               <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience</Link>
               <Link href="/nso" className="chip" style={{ textDecoration: 'none' }}>NSO</Link>
+              <Link href="/inspo" className="chip" style={{ textDecoration: 'none' }}>Inspo</Link>
             </span>
           </div>
           <h1>Competitor watch</h1>
@@ -111,10 +113,12 @@ export default function Competitors({ data, today }: { data: CompetitorData; tod
       <Scoreboard board={board.filter((b) => inBrand(b.brand))} onOpen={setOpen} />
       <GrowthPanel posts={data.posts} accounts={data.accounts} board={board.filter((b) => inBrand(b.brand) || b.us)} today={today} />
 
+      <CompetitorTikTok videos={data.tiktok.filter((v) => inBrand(v.brand) || v.handle === 'wingstopuk')} days={data.tiktokDays} today={today} win={win} />
+
       <section className="band" id="viral">
         <div className="inner">
           <div className="band-head">
-            <div><span className="eyebrow">Public Instagram · last {win} days · tap to play</span><h2>What&apos;s breaking out</h2></div>
+            <div><span className="eyebrow">Public Instagram · last {win} days · tap to play</span><h2>Instagram: what&apos;s breaking out</h2></div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div className="seg" role="group" aria-label="Rank posts by">
                 {SORTS.map(([k, l]) => <button key={k} type="button" aria-pressed={sort === k} onClick={() => { setSort(k); setLimit(18); }}>{l}</button>)}

@@ -150,3 +150,23 @@ export function sentimentSplit(comments: Pick<Comment, 'text'>[]) {
   const opinionated = c.positive + c.negative + c.mixed;
   return { ...c, total: comments.length, positiveShare: opinionated ? c.positive / opinionated : null, negativeShare: opinionated ? c.negative / opinionated : null };
 }
+
+export type ReplyWhy = 'Question' | 'Funny' | 'Request' | 'Loud' | 'Wants in';
+/**
+ * Comments worth a reply-with-video: questions, the funny or absurd, city requests and the loudest.
+ * Pushback is left out on purpose: complaints get a direct reply, not a video.
+ */
+export function replyBank(comments: Pick<Comment, 'comment_id' | 'text' | 'likes' | 'theme' | 'platform' | 'post_link' | 'author'>[], limit = 18) {
+  const FUNNY = /(😭|💀|😂|🤣|🫠|lmao|lmfao|i'm crying|im crying|dead|marry|propos|wedding|my mum|my mom|my nan|tattoo|divorce|ex\b|girlfriend|boyfriend|wife|husband|therapy|rent|salary|pay me|sponsor me)/i;
+  const scored = comments.filter((c) => c.theme !== 'Pushback' && c.text && c.text.replace(/@[\w.]+/g, '').trim().length > 3).map((c) => {
+    const why: ReplyWhy[] = [];
+    if (/\?/.test(c.text)) why.push('Question');
+    if (FUNNY.test(c.text)) why.push('Funny');
+    if (c.theme === "Where's ours?") why.push('Request');
+    if (c.theme === 'Wants in') why.push('Wants in');
+    if ((c.likes ?? 0) >= 50) why.push('Loud');
+    const score = (c.likes ?? 0) * (1 + why.length) + (why.includes('Funny') ? 40 : 0) + (why.includes('Question') ? 20 : 0);
+    return { c, why, score };
+  }).filter((x) => x.why.length > 0);
+  return scored.sort((a, b) => b.score - a.score).slice(0, limit);
+}

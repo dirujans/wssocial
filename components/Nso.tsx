@@ -55,6 +55,7 @@ export default function Nso({ data, today }: { data: NsoData; today: string }) {
               <Link href="/" className="chip" style={{ textDecoration: 'none' }}>Our channels</Link>
               <Link href="/audience" className="chip" style={{ textDecoration: 'none' }}>Our audience</Link>
               <Link href="/competitors" className="chip" style={{ textDecoration: 'none' }}>Competitor watch</Link>
+              <Link href="/inspo" className="chip" style={{ textDecoration: 'none' }}>Inspo</Link>
             </span>
           </div>
           <h1>NSO intelligence</h1>

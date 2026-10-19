@@ -41,8 +41,9 @@ export async function runApifyStep(): Promise<Record<string, unknown>> {
   for (const r of open ?? []) {
     try {
       const res = await fetch(`${BASE}/actor-runs/${r.run_id}`, { headers: auth(), cache: 'no-store' });
-      const run = (await res.json()).data as { status: string; defaultDatasetId: string; finishedAt?: string; usageTotalUsd?: number } | undefined;
-      if (!run) continue;
+      const raw = await res.json().catch(() => ({}));
+      const run = raw.data as { status: string; defaultDatasetId: string; finishedAt?: string; usageTotalUsd?: number } | undefined;
+      if (!run) { out[`${r.kind}_check_error`] = raw.error?.message ?? `HTTP ${res.status}`; continue; }
       if (['READY', 'RUNNING'].includes(run.status)) { out[`${r.kind}_pending`] = r.run_id; continue; }
       if (run.status !== 'SUCCEEDED') { await db.from('apify_runs').update({ status: run.status, finished_at: run.finishedAt ?? null, usd: run.usageTotalUsd ?? null, ingested_at: new Date().toISOString(), error: run.status }).eq('run_id', r.run_id); continue; }
       const ds = await fetch(`${BASE}/datasets/${run.defaultDatasetId}/items?clean=true&limit=2000`, { headers: auth(), cache: 'no-store' });
@@ -58,9 +59,12 @@ export async function runApifyStep(): Promise<Record<string, unknown>> {
   // 2. Start runs that are due (and not already running).
   for (const kind of Object.keys(JOBS) as Kind[]) {
     const job = JOBS[kind];
-    const { data: last } = await db.from('apify_runs').select('started_at,ingested_at').eq('kind', kind).order('started_at', { ascending: false }).limit(1).maybeSingle();
-    const pending = last && !last.ingested_at;
-    const due = !last || Date.now() - Date.parse(last.started_at) > job.everyHours * 3600e3;
+    // Never start a second run while one is open, and never start one if we can't tell.
+    const { data: recent, error: qerr } = await db.from('apify_runs').select('started_at,ingested_at').eq('kind', kind).order('started_at', { ascending: false }).limit(5);
+    if (qerr) { out[`${kind}_skip`] = qerr.message; continue; }
+    const rows = recent ?? [];
+    const pending = rows.some((x) => !x.ingested_at && Date.now() - Date.parse(x.started_at) < 6 * 3600e3);
+    const due = !rows.length || Date.now() - Date.parse(rows[0].started_at) > job.everyHours * 3600e3;
     if (pending || !due) continue;
     const res = await fetch(`${BASE}/acts/${job.actor}/runs`, { method: 'POST', headers: auth(), body: JSON.stringify(job.input()), cache: 'no-store' });
     const body = await res.json().catch(() => ({}));
@@ -69,4 +73,12 @@ export async function runApifyStep(): Promise<Record<string, unknown>> {
     out[`${kind}_started`] = body.data.id;
   }
   return out;
+}
+
+/** Abort a run we no longer want (e.g. an accidental duplicate) and close it off. */
+export async function abortRun(runId: string) {
+  const res = await fetch(`${BASE}/actor-runs/${runId}/abort`, { method: 'POST', headers: auth(), cache: 'no-store' });
+  const raw = await res.json().catch(() => ({}));
+  await supabaseAdmin().from('apify_runs').update({ status: raw.data?.status ?? 'ABORTED', ingested_at: new Date().toISOString(), error: 'aborted: duplicate' }).eq('run_id', runId);
+  return { status: res.status, run: raw.data?.status ?? raw.error?.message };
 }

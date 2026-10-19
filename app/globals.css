@@ -329,3 +329,12 @@ details.card[open] > summary { margin-bottom: 6px; }
 .formrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 .formrow input, .formrow select { font: inherit; font-size: .86rem; color: var(--fg); background: #000; border: 1px solid var(--line-2); border-radius: 999px; padding: 8px 14px; flex: 1; min-width: 9rem; }
 .formrow input[type="date"] { color-scheme: dark; }
+
+/* ---------- Inspo ---------- */
+.trendgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: 12px; margin-top: 12px; }
+.trend { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; border-left: 4px solid var(--line-2); min-width: 0; }
+.trend[data-fit="ours"] { border-left-color: var(--opal); }
+.trend[data-fit="maybe"] { border-left-color: var(--lemon); }
+.trend .rankn { font-style: italic; font-weight: 900; font-stretch: 62%; font-size: 2rem; line-height: .8; color: var(--muted); }
+.trend .tag-name { font-style: italic; font-weight: 900; font-stretch: 62%; text-transform: uppercase; font-size: 1.5rem; line-height: .95; color: var(--fg); text-decoration: none; overflow-wrap: anywhere; }
+.trend .tag-name:hover { color: var(--opal-hi); }

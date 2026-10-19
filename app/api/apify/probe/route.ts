@@ -2,7 +2,7 @@
 // so we only schedule scrapers that return what we need and fit the free credit.
 // Guarded by a single-use key stored in Supabase (ops_keys), not by the team password, so it can be run from tooling.
 import { runActor } from '@/lib/apify';
-import { runApifyStep } from '@/lib/apifyJobs';
+import { abortRun, runApifyStep } from '@/lib/apifyJobs';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +32,8 @@ export async function GET(req: Request) {
   const { data } = await db.from('ops_keys').select('key').eq('key', key).eq('purpose', 'apify-probe').gt('expires_at', new Date().toISOString()).maybeSingle();
   if (!key || !data) return new Response('Unauthorised', { status: 401 });
 
+  const abort = url.searchParams.get('abort');
+  if (abort) return Response.json(await abortRun(abort));
   if (url.searchParams.get('run') === 'jobs') return Response.json(await runApifyStep());
   const which = (url.searchParams.get('only') ?? 'tiktok,instagram,trends').split(',').filter((k) => PROBES[k]);
   const override = url.searchParams.get('input');
