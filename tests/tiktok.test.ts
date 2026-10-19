@@ -23,6 +23,8 @@ test('mapTrends and trendFit', () => {
   const t = mapTrends([{ Rank: 1, Hashtag: '#halloweenfood', Posts: 100, 'Video Views': 5000, Industries: ['Food & Beverage'], 'Country Code': 'GB', 'Trend Direction': 'up', 'Trend Data': [{ date: '2026-10-12', value: 40 }], 'Top Creators': [{ handle: '@a', followers: 10 }] }], '2026-10-19');
   assert.equal(t[0].hashtag, 'halloweenfood'); assert.equal(t[0].views, 5000); assert.equal(t[0].series[0].value, 40);
   assert.equal(trendFit(t[0]), 'ours');
-  assert.equal(trendFit({ hashtag: 'marvelrivalsavengers', industries: ['Games'] }), 'skip');
+  assert.equal(trendFit({ hashtag: 'marvelrivalsavengers', industries: ['Games'] }), 'maybe');
+  assert.equal(trendFit({ hashtag: 'championsleague', industries: [] }), 'ours');
+  assert.equal(trendFit({ hashtag: 'makeupmania', industries: [] }), 'skip');
   assert.equal(trendFit({ hashtag: 'xyz', industries: ['Sports & Outdoor'] }), 'maybe');
 });
