@@ -9,14 +9,29 @@ export interface SyncResult { status: 'ok' | 'partial' | 'error'; errors: string
 const why = (r: PromiseRejectedResult) => String(r.reason?.message ?? r.reason);
 
 /** Pull Windsor into Supabase and raise alerts. Each source is independent: one failing never blocks the rest. */
-export async function runSync(): Promise<SyncResult> {
+export type SyncPart = 'core' | 'intel' | 'all';
+
+const skip = <T,>(): Promise<T> => Promise.reject(new Error('__skipped__'));
+
+/**
+ * core: Sprout, our Instagram and TikTok, comments, alerts. intel: competitors, audience, Apify.
+ * The cron runs them as separate calls so each stays well inside the 60s function limit.
+ */
+export async function runSync(part: SyncPart = 'all'): Promise<SyncResult> {
+  const core = part !== 'intel', intel = part !== 'core';
   const db = supabaseAdmin();
   const started_at = new Date().toISOString();
   const detail: Record<string, unknown> = {};
   const errors: string[] = [];
 
   const [daysR, postsR, commentsR, mediaR, accountR, rivalsR, audR] = await Promise.allSettled([
-    fetchProfileDays(), fetchPosts(), fetchComments(), fetchMedia(), fetchAccountDays(), fetchCompetitorSocial(), fetchAudience(),
+    core ? fetchProfileDays() : skip<Awaited<ReturnType<typeof fetchProfileDays>>>(),
+    core ? fetchPosts() : skip<Awaited<ReturnType<typeof fetchPosts>>>(),
+    core ? fetchComments() : skip<Awaited<ReturnType<typeof fetchComments>>>(),
+    core ? fetchMedia() : skip<Awaited<ReturnType<typeof fetchMedia>>>(),
+    core ? fetchAccountDays() : skip<Awaited<ReturnType<typeof fetchAccountDays>>>(),
+    intel ? fetchCompetitorSocial() : skip<Awaited<ReturnType<typeof fetchCompetitorSocial>>>(),
+    intel ? fetchAudience() : skip<Awaited<ReturnType<typeof fetchAudience>>>(),
   ]);
 
   if (daysR.status === 'fulfilled') {
@@ -79,9 +94,12 @@ export async function runSync(): Promise<SyncResult> {
   } else errors.push(`Windsor comments: ${why(commentsR)}`);
 
   // Apify scrapes (competitor TikTok, UK trends): collect finished runs, start due ones. Never fails the sync.
-  try { detail.apify = await runApifyStep(); } catch (e) { errors.push(`Apify: ${(e as Error).message}`); }
+  if (intel) { try { detail.apify = await runApifyStep(); } catch (e) { errors.push(`Apify: ${(e as Error).message}`); } }
+  // Skipped sources are not failures.
+  for (let i = errors.length - 1; i >= 0; i--) if (errors[i].includes('__skipped__')) errors.splice(i, 1);
+  detail.part = part;
 
-  const anyOk = [daysR, postsR, commentsR, mediaR, accountR, rivalsR, audR].some((r) => r.status === 'fulfilled');
+  const anyOk = [daysR, postsR, commentsR, mediaR, accountR, rivalsR, audR].some((r) => r.status === 'fulfilled') || part === 'intel';
   const status: SyncResult['status'] = errors.length === 0 ? 'ok' : anyOk ? 'partial' : 'error';
   await db.from('sync_log').insert({ job: 'windsor', status, started_at, finished_at: new Date().toISOString(), detail: { ...detail, errors } });
   return { status, ...detail, errors } as SyncResult;
