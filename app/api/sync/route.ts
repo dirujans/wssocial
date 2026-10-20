@@ -14,7 +14,10 @@ export async function GET(req: Request) {
   if (!expected || got !== expected) {
     // Leave a trace so a broken cron is visible on the dashboard, not silent.
     if (/vercel-cron/i.test(req.headers.get('user-agent') ?? '')) {
-      await supabaseAdmin().from('sync_log').insert({ job: 'windsor', status: 'error', started_at: new Date().toISOString(), finished_at: new Date().toISOString(), detail: { errors: ['Cron call rejected: CRON_SECRET mismatch'] } });
+      // Shape only, never the values: enough to tell a missing header from a wrong or mangled secret.
+      const raw = req.headers.get('authorization');
+      const diag = { header: raw == null ? 'missing' : /^Bearer\s+/i.test(raw) ? 'bearer' : 'other', gotLength: got.length, expectedLength: expected.length, sameIgnoringSpaces: !!expected && got.replace(/\s|"|'/g, '') === expected.replace(/\s|"|'/g, '') };
+      await supabaseAdmin().from('sync_log').insert({ job: 'windsor', status: 'error', started_at: new Date().toISOString(), finished_at: new Date().toISOString(), detail: { errors: ['Cron call rejected: CRON_SECRET mismatch'], diag } });
     }
     return new Response('Unauthorised', { status: 401 });
   }
