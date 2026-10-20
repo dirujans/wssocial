@@ -1,5 +1,5 @@
 import Dashboard from '@/components/Dashboard';
-import { requireArea } from '@/lib/auth';
+import { canView, requireArea } from '@/lib/auth';
 import TopBar from '@/components/TopBar';
 import { loadDashboard } from '@/lib/data';
 
@@ -30,5 +30,8 @@ export default async function Page() {
     );
   }
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' }); // YYYY-MM-DD, London
-  return <><TopBar areas={areas} /><Dashboard data={data} today={today} /></>;
+  // Spend stays behind the Paid password: without it, the money never reaches the browser.
+  const showSpend = canView('paid');
+  if (!showSpend) data = { ...data, adsByDay: data.adsByDay.map((r) => ({ ...r, ig_spend: 0, tt_spend: 0, spend: 0 })) };
+  return <><TopBar areas={areas} /><Dashboard data={data} today={today} showSpend={showSpend} /></>;
 }

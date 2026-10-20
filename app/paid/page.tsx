@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Paid · Wingstop UK&I Social' };
 
 export default async function Page() {
-  const areas = requireArea('social', '/paid');
+  const areas = requireArea('paid', '/paid');
   let data;
   try { data = await loadPaid(); } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

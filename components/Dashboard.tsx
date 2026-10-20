@@ -20,7 +20,7 @@ import WeeklyOutput from './WeeklyOutput';
 import { compact, signedPct } from './format';
 import { LphFooter } from './Brand';
 
-export default function Dashboard({ data, today }: { data: DashboardData; today: string }) {
+export default function Dashboard({ data, today, showSpend = false }: { data: DashboardData; today: string; showSpend?: boolean }) {
   const [period, setPeriod] = useState<Period>(28);
   const [channel, setChannel] = useState<ChannelFilter>('All');
   const [pickedDay, setPickedDay] = useState<string | null>(null);
@@ -62,11 +62,12 @@ export default function Dashboard({ data, today }: { data: DashboardData; today:
               const o = (m: string) => splits.organic!.toplines.find((t) => t.metric === m)?.change;
               const pv = (m: string) => splits.paid?.toplines.find((t) => t.metric === m)?.current ?? 0;
               const cv = (m: string) => splits.combined?.toplines.find((t) => t.metric === m)?.current ?? 0;
+              const anyAds = data.adsByDay.some((r) => r.day >= splits.organic!.from && r.day <= splits.organic!.to && (r.ig_impressions > 0 || r.tt_plays > 0));
               const spend = data.adsByDay.filter((r) => r.day >= splits.organic!.from && r.day <= splits.organic!.to).reduce((x, r) => x + r.spend, 0);
               const share = cv('views') ? pv('views') / cv('views') : 0;
               return (<>
                 <span className="take-line"><b>Organic:</b> shares <b className={cls(o('shares'))}>{word(o('shares'))}</b>, saves <b className={cls(o('saves'))}>{word(o('saves'))}</b>, reposts <b className={cls(o('reposts'))}>{word(o('reposts'))}</b>, views <b className={cls(o('views'))}>{word(o('views'))}</b> on the {period} days before.</span>{' '}
-                {spend > 0 && <span className="take-line"><b>Paid on top:</b> £{Math.round(spend).toLocaleString('en-GB')} spent, adding {compact(pv('views'))} views ({Math.round(share * 100)}% of all views), {compact(pv('shares'))} shares and {compact(pv('saves'))} saves.</span>}{' '}
+                {anyAds && <span className="take-line"><b>Paid on top:</b> {showSpend && spend > 0 ? <>£{Math.round(spend).toLocaleString('en-GB')} spent, adding</> : 'ads added'} {compact(pv('views'))} views ({Math.round(share * 100)}% of all views), {compact(pv('shares'))} shares and {compact(pv('saves'))} saves.</span>}{' '}
               </>);
             })() : null}
             {takeaway(heads) && <span className="take-line muted-line"><b>All channels (Sprout, paid included):</b> {takeaway(heads)}</span>}

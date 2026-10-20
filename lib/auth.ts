@@ -6,9 +6,11 @@ import { redirect } from 'next/navigation';
 // Areas are unlocked separately. The master password (DASHBOARD_PASSWORD) opens all of them;
 // each area password opens only its own area, so e.g. the loyalty team can see Flavour Club without seeing social data.
 // Runs in the Node runtime (not edge middleware), so secret env vars are always available.
-export type Area = 'social' | 'competitor' | 'nso' | 'flavour';
-export const AREAS: Area[] = ['social', 'competitor', 'nso', 'flavour'];
-const AREA_ENV: Record<Area, string> = { social: 'SOCIAL_PASSWORD', competitor: 'COMPETITOR_PASSWORD', nso: 'NSO_PASSWORD', flavour: 'FLAVOUR_CLUB_PASSWORD' };
+export type Area = 'social' | 'competitor' | 'nso' | 'flavour' | 'paid';
+export const AREAS: Area[] = ['social', 'competitor', 'nso', 'flavour', 'paid'];
+// Paid (ad spend by agency) is deliberately outside the master password: only PAID_PASSWORD opens it.
+const MASTER_AREAS: Area[] = AREAS.filter((a) => a !== 'paid');
+const AREA_ENV: Record<Area, string> = { social: 'SOCIAL_PASSWORD', competitor: 'COMPETITOR_PASSWORD', nso: 'NSO_PASSWORD', flavour: 'FLAVOUR_CLUB_PASSWORD', paid: 'PAID_PASSWORD' };
 
 export const SESSION_COOKIE = 'ws_session';
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days, then sign in again
@@ -27,11 +29,11 @@ function same(a: string, b: string) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-/** Which areas a password opens: all for the master password, one for an area password, none otherwise. */
+/** Which areas a password opens: all but Paid for the master password, one for an area password, none otherwise. */
 export function areasForPassword(attempt: string): Area[] {
   const a = attempt.trim();
   if (!a) return [];
-  if (same(a, master())) return [...AREAS];
+  if (same(a, master())) return [...MASTER_AREAS];
   return AREAS.filter((area) => { const p = process.env[AREA_ENV[area]]?.trim(); return !!p && same(a, p); });
 }
 

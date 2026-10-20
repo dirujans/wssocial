@@ -12,7 +12,8 @@ export default function TopBar({ areas }: { areas: AreaId[] }) {
   const current = AREA_INFO.find((a) => a.pages.some((p) => p.href === path));
   // Flavour Club-only sessions never see the rest of the dashboard in the bar.
   const flavourOnly = areas.length === 1 && areas[0] === 'flavour';
-  const shown = flavourOnly ? AREA_INFO.filter((a) => a.id === 'flavour') : AREA_INFO;
+  // Paid has its own password and only appears once it's unlocked.
+  const shown = flavourOnly ? AREA_INFO.filter((a) => a.id === 'flavour') : AREA_INFO.filter((a) => a.id !== 'paid' || areas.includes('paid'));
   return (
     <header className="topbar">
       <div className="inner">

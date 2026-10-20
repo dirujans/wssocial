@@ -24,7 +24,7 @@ export default function Home() {
       <section className="band">
         <div className="inner">
           <div className="areagrid">
-            {AREA_INFO.map((a, i) => {
+            {AREA_INFO.filter((a) => a.id !== 'paid' || areas.includes('paid') || isMasterSession()).map((a, i) => {
               const open = areas.includes(a.id);
               return (
                 <Link key={a.id} href={open ? a.home : `/login?area=${a.id}&next=${encodeURIComponent(a.home)}`} className={`areacard rise d${i + 1}`} data-area={a.id}>
