@@ -2,17 +2,17 @@
 
 import { useMemo, useState } from 'react';
 import type { FlavourClubData } from '@/lib/data';
-import { classifyFc, FC_HASHTAG, FC_LAUNCH, FC_SITE, opportunities, type FcEntry, type FcTheme, type FcTopic } from '@/lib/flavourClub';
+import { classifyFc, FC_HASHTAG, FC_LAUNCH, FC_SITE, isOwnAuthor, listen, listening, opportunities, versusUsual, type FcEntry, type FcTopic } from '@/lib/flavourClub';
 import CountUp from './CountUp';
 import { LphFooter } from './Brand';
+import FcCommentWall, { type Heard } from './FcCommentWall';
+import FcListeningPanel from './FcListening';
 import FcScans from './FcScans';
 import PostWall from './PostWall';
 import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
 import { CHANNEL_COLOUR, compact, day, int, pct, safeHref } from './format';
 
-const THEME_COL: Record<FcTheme, string> = { Hyped: 'var(--opal)', Question: 'var(--lemon)', 'Wants in': 'var(--mango)', Pushback: 'var(--atomic)', 'Tagging a friend': 'var(--hawaiian)', Other: 'var(--line-2)' };
-const THEMES: FcTheme[] = ['Hyped', 'Question', 'Wants in', 'Tagging a friend', 'Pushback', 'Other'];
 const TOPICS: FcTopic[] = ['Sign-up', 'App and site', 'Stamps and rewards', 'Events and artists', 'Where', 'Founding member', 'Other question'];
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5);
 
@@ -30,7 +30,12 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
   const [entryFilter, setEntryFilter] = useState<'all' | 'shortlist' | 'winner'>('all');
   const [err, setErr] = useState<string | null>(null);
 
-  const items = useMemo(() => data.comments.map(classifyFc), [data.comments]);
+  // Our own replies (TikTok names them) are kept for the post threads but left out of every count.
+  const heard = useMemo<Heard[]>(() => data.comments.map(classifyFc).map((i) => ({ ...i, l: listen(i), ours: isOwnAuthor(i.c.author) })), [data.comments]);
+  const items = useMemo(() => heard.filter((h) => !h.ours), [heard]);
+  const ourReplies = heard.length - items.length;
+  const heardSummary = useMemo(() => listening(items), [items]);
+  const vs = useMemo(() => versusUsual(data.posts, data.baseline), [data.posts, data.baseline]);
   const opps = useMemo(() => opportunities(items, entries.length), [items, entries.length]);
   const dayN = daysBetween(FC_LAUNCH, today) + 1;
   const sum = (k: 'views' | 'likes' | 'comments' | 'shares' | 'saves' | 'reach') => data.posts.reduce((s, p) => s + (p[k] ?? 0), 0);
@@ -39,8 +44,6 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
   const questions = items.filter((i) => i.theme === 'Question');
   const open = questions.filter((i) => marks[`comment:${i.c.comment_id}`] !== 'answered');
   const qShown = questions.filter((i) => (topic === 'all' || i.topic === topic) && (showAnswered || marks[`comment:${i.c.comment_id}`] !== 'answered')).sort((a, b) => (b.c.likes ?? 0) - (a.c.likes ?? 0));
-  const top = items.filter((i) => i.theme !== 'Pushback' && i.theme !== 'Tagging a friend' && i.c.text.replace(/@[\w.]+/g, '').trim().length > 4).sort((a, b) => (b.c.likes ?? 0) - (a.c.likes ?? 0)).slice(0, 9);
-  const pushback = items.filter((i) => i.theme === 'Pushback').sort((a, b) => (b.c.likes ?? 0) - (a.c.likes ?? 0)).slice(0, 4);
   const shownEntries = entries.filter((e) => e.status !== 'skip' && (entryFilter === 'all' || e.status === entryFilter));
 
   const setMark = async (key: string, verdict: string) => {
@@ -62,9 +65,9 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <h1><span className="sr-only">Flavour Club</span><img src="/brand/flavour-club.png" alt="" className="fc-logo" /></h1>
           <p className="take">
-            {data.posts.length ? <><b>{compact(sum('views'))}</b> views and <b>{int(data.comments.length)}</b> comments on {data.posts.length} club post{data.posts.length === 1 ? '' : 's'}. </> : <>The launch post lands at the next sync. </>}
+            {data.posts.length ? <><b>{compact(sum('views'))}</b> views and <b>{int(items.length)}</b> fan comments on {data.posts.length} club post{data.posts.length === 1 ? '' : 's'}{vs[0].index != null ? <>, views running at <b>{vs[0].index.toFixed(1)}×</b> our usual post</> : null}. </> : <>The launch post lands at the next sync. </>}
             {positive != null && <><b>{pct(positive, 0)}</b> of comments with an opinion are positive. </>}
-            <b>{open.length}</b> questions waiting for an answer, <b>{entries.length}</b> #{FC_HASHTAG} posts found.
+            <b>{int(heardSummary.ladder[3].n)}</b> say they&apos;ve joined, <b>{int(heardSummary.ladder[2].n)}</b> want to, and <b>{int(heardSummary.friendsTagged)}</b> friends have been tagged in. <b>{open.length}</b> questions are waiting for an answer.
           </p>
           {data.lastSync && <p className="cap" style={{ color: 'rgba(255,255,255,.75)' }}>Last sync {new Date(data.lastSync.finished_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' })} · <a href={FC_SITE} target="_blank" rel="noopener noreferrer" style={{ color: '#fff' }}>flavourclub.co.uk</a></p>}
         </div>
@@ -100,48 +103,13 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
         </div>
       </section>
 
+      <FcListeningPanel l={heardSummary} vs={vs} ourReplies={ourReplies} fanQuestions={questions.length} />
+
+      <FcCommentWall heard={heard} posts={data.posts} />
+
       <FcScans rows={data.links} stores={data.stores} />
 
       <PostWall media={data.posts} comments={data.comments} from="2000-01-01" channel="All" id="club-posts" title="Club posts" eyebrow="Every post about Flavour Club · tap to play and read the comments" />
-
-      <section className="band" id="conversation">
-        <div className="inner">
-          <div className="band-head"><div><span className="eyebrow">{int(items.length)} comments on club posts</span><h2>What they&apos;re saying</h2></div></div>
-          <div className="grid2">
-            <div className="card">
-              <h3>Why they comment</h3>
-              <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-                {THEMES.map((t) => { const n = items.filter((i) => i.theme === t).length; const max = Math.max(1, ...THEMES.map((x) => items.filter((i) => i.theme === x).length)); return (
-                  <div key={t} className="hbar"><span className="lbl">{t}</span><span className="track"><span style={{ width: `${Math.max(0.5, (n / max) * 100)}%`, background: THEME_COL[t] }} /></span><span className="val">{int(n)}</span></div>
-                ); })}
-              </div>
-              <p className="note" style={{ marginTop: 10 }}>Keyword rules, not AI: read the comments before quoting a number upward.</p>
-            </div>
-            <div className="card">
-              <h3>What they ask about</h3>
-              <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-                {TOPICS.map((t) => { const n = questions.filter((i) => i.topic === t).length; const max = Math.max(1, ...TOPICS.map((x) => questions.filter((i) => i.topic === x).length)); return (
-                  <div key={t} className="hbar"><span className="lbl">{t}</span><span className="track"><span style={{ width: `${Math.max(0.5, (n / max) * 100)}%`, background: 'var(--lemon)' }} /></span><span className="val">{int(n)}</span></div>
-                ); })}
-              </div>
-            </div>
-          </div>
-          {top[0] && (
-            <div className="spotlight">
-              <span className="eyebrow" style={{ opacity: 0.7 }}>Loudest comment · {top[0].c.platform}</span>
-              <div className="q" style={{ marginTop: 8 }}>&ldquo;{top[0].c.text}&rdquo;</div>
-              <div className="meta"><span className="likes">{int(top[0].c.likes)}</span><span>likes</span>{safeHref(top[0].c.post_link) && <a href={safeHref(top[0].c.post_link)} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>See the post</a>}</div>
-            </div>
-          )}
-          <div className="cgrid">{top.slice(1).map((i) => <FcCommentTile key={i.c.comment_id} i={i} />)}</div>
-          {pushback.length > 0 && (
-            <div className="card" style={{ borderColor: 'var(--atomic)' }}>
-              <h3>Pushback worth reading</h3>
-              <div className="cgrid" style={{ marginTop: 10 }}>{pushback.map((i) => <FcCommentTile key={i.c.comment_id} i={i} />)}</div>
-            </div>
-          )}
-        </div>
-      </section>
 
       <section className="band" id="questions">
         <div className="inner">
@@ -273,25 +241,22 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
         </div>
       </section>
 
-      <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'conversation', label: 'What they say' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }]} />
+      <section className="band" id="blind-spots">
+        <div className="inner">
+          <div className="band-head"><div><span className="eyebrow">What this page can&apos;t see yet, and what would fix it</span><h2>Blind spots</h2></div></div>
+          <div className="feed">
+            <article className="item" data-p="high"><div className="title">Members, the number that matters</div><div className="sum">Sign-ups, active members, stamps earned and rewards redeemed live in the Flavour Club platform. Connect it (or GA4 on flavourclub.co.uk) and this page can read social and scans against real joins.</div></article>
+            <article className="item" data-p="medium"><div className="title">Who is commenting on Instagram</div><div className="sum">Meta doesn&apos;t give commenter names, so Instagram replies from us can&apos;t be split out and repeat commenters can&apos;t be counted. TikTok gives both.</div></article>
+            <article className="item" data-p="medium"><div className="title">Stories, tags and private accounts</div><div className="sum">Story mentions, photo tags and private posts are invisible to every tool we have. Ask founding-member entrants to post publicly with #{FC_HASHTAG}.</div></article>
+            <article className="item" data-p="low"><div className="title">Conversation beyond our posts</div><div className="sum">Reddit, X, reviews and press come from the morning report, not a live feed. A listening tool (Brandwatch, Talkwalker or similar) would add volume and share of voice across the web.</div></article>
+          </div>
+        </div>
+      </section>
+
+      <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'listening', label: 'Listening' }, { id: 'comments-wall', label: 'Comment wall' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }, { id: 'blind-spots', label: 'Blind spots' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
         <div className="inner"><p className="cap">Flavour Club only. Our posts and comments from Instagram and TikTok via Windsor.ai; hashtag entries via Apify; QR scans via Bitly; press and chatter from the morning report. Themes and topics are keyword rules.</p><LphFooter /></div>
       </footer>
     </main>
-  );
-}
-
-function FcCommentTile({ i }: { i: ReturnType<typeof classifyFc> }) {
-  return (
-    <div className="cmt" style={{ borderLeft: `3px solid ${THEME_COL[i.theme]}` }}>
-      <div className="text">{i.c.text}</div>
-      <div className="meta">
-        <span className="likes-n">{int(i.c.likes)}</span> likes
-        <span className="plat"><i style={{ background: CHANNEL_COLOUR[i.c.platform] }} />{i.c.platform}</span>
-        <span className="tag" style={{ background: THEME_COL[i.theme], borderColor: THEME_COL[i.theme], color: i.theme === 'Pushback' ? '#fff' : '#000' }}>{i.theme}</span>
-        {i.c.author && <span>@{i.c.author}</span>}
-        {safeHref(i.c.post_link) && <a href={safeHref(i.c.post_link)} target="_blank" rel="noopener noreferrer">Post</a>}
-      </div>
-    </div>
   );
 }

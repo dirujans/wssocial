@@ -84,3 +84,20 @@ test('unknown QR labels show under their own name and count as in-store', () => 
   assert.equal(s.instore, 7);
   assert.ok(s.channels.some((c) => c.channel === 'Digital screen' && c.total === 7));
 });
+
+test('listen: reads intent, advocacy, catchphrase, cast and store demand', async () => {
+  const { classifyFc, listen, listening } = await import('../lib/flavourClub');
+  const c = (text: string) => classifyFc({ comment_id: text, platform: 'Instagram', text, likes: 0, replies: null, author: null, commented_at: null, post_date: '2026-10-19', post_key: 'k', post_link: null, theme: 'Other' as never });
+  assert.ok(listen(c('Signed up today 🔥🔥')).signals.includes('Signed up'));
+  assert.ok(listen(c('Sign me up rn')).signals.includes('Wants to join'));
+  assert.ok(listen(c('What you know about flavours?! @a @b')).signals.includes('Catchphrase'));
+  assert.equal(listen(c('What you know about flavours?! @a @b')).tags, 2);
+  assert.ok(listen(c('Did I see Angelina?!')).signals.includes('Cast spotted'));
+  assert.ok(listen(c('🔥🔥🔥')).signals.includes('Pure emoji'));
+  const s = listen(c('when is the branch in harrow opening'));
+  assert.ok(s.signals.includes('Wants a store'));
+  assert.equal(s.place, 'Harrow');
+  const l = listening([c('Signed up today'), c('Sign me up'), c('How does it work?'), c('🔥'), c('@mate look')]);
+  assert.equal(l.ladder.find((x) => x.step === 'Says signed up')!.n, 1);
+  assert.equal(l.friendsTagged, 1);
+});

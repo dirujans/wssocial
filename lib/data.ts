@@ -171,6 +171,8 @@ export interface FlavourClubData {
   loyalty: CompetitorItem[];
   links: FcLinkDay[];
   stores: FcStore[];
+  /** Our non-club posts in the 90 days before launch, to read club posts against. */
+  baseline: { platform: string; views: number | null; shares: number | null; saves: number | null; comments: number | null }[];
   lastSync: { status: string; finished_at: string } | null;
 }
 
@@ -188,6 +190,8 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
     db.from('fc_link_days').select('day,bitlink,destination,clicks,scans,total').order('day').limit(50000),
     db.from('fc_stores').select('code,name,place,region,lat,lng'),
   ]);
+  const bl = await db.from('media').select('platform,views,shares,saves,comments,caption,posted').gte('posted', shiftDay(FC_LAUNCH, -90)).lt('posted', FC_LAUNCH).in('platform', ['Instagram', 'TikTok']);
+  if (bl.error) throw new Error(bl.error.message);
   for (const r of [m, me, en, mk, co, s, ln, sto]) if (r.error) throw new Error(r.error.message);
   const posts = ((m.data ?? []) as Media[]).filter(isFcPost);
   const keys = posts.map((p) => p.comment_key).filter(Boolean);
@@ -202,6 +206,7 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
     loyalty: ((co.data ?? []) as CompetitorItem[]).filter((i) => /loyal|reward|app\b|points|stamp|club/i.test(`${i.title} ${i.summary ?? ''}`)),
     links: (ln.data ?? []) as FcLinkDay[],
     stores: (sto.data ?? []) as FcStore[],
+    baseline: ((bl.data ?? []) as (Media & { caption: string })[]).filter((x) => !isFcText(x.caption)).map(({ platform, views, shares, saves, comments }) => ({ platform, views, shares, saves, comments })),
     lastSync: (s.data?.[0] as FlavourClubData['lastSync']) ?? null,
   };
 }

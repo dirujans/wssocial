@@ -160,3 +160,95 @@ export function linkSummary(rows: FcLinkDay[], from: string): LinkSummary {
 }
 
 export interface FcStore { code: string; name: string; place: string | null; region: string | null; lat: number | null; lng: number | null }
+
+// ---- Social listening: signals in the comments (keyword rules, a pointer to read them, never a verdict) ----
+export type FcSignal = 'Signed up' | 'Wants to join' | 'Asking how' | 'Tagging mates' | 'Catchphrase' | 'The music' | 'Cast spotted' | 'Funny' | 'Delivery apps' | 'Old orders' | 'Wants an app' | 'Wants a store' | 'Pushback' | 'Pure emoji';
+export const FC_SIGNALS: FcSignal[] = ['Signed up', 'Wants to join', 'Asking how', 'Tagging mates', 'Catchphrase', 'The music', 'Cast spotted', 'Funny', 'Delivery apps', 'Old orders', 'Wants an app', 'Wants a store', 'Pushback', 'Pure emoji'];
+/** Our own replies (TikTok gives the author; Instagram doesn't give commenter names, so ours can't be told apart there). */
+export const isOwnAuthor = (a: string | null | undefined) => /^(wingstopuk|wingstopie|wingstop_ie|wingstopireland|wingstop)$/i.test(a ?? '');
+const SIG: [FcSignal, RegExp][] = [
+  ['Signed up', /\b(signed up|singed up|js signed|just joined|i joined|joined (it|already|today)|registered|got mine|signing up for mine|after signing up|i'?m (a )?member|already a member|done ✅|got my (card|stamp))/i],
+  ['Wants to join', /sign me up|signing up|omw to sign|i need this|i'?m in\b|im in\b|need this|i want (in|to be)|want to be (a )?part|count me in|where do i sign|let me in|how do i (join|sign|get)/i],
+  ['Asking how', /\bhow (do|does|can|to)\b|\bis it free\b|\bwhere (do|can|is)\b|\bwhat do (i|you) get\b|\blink\??$|\bhow many\b|\bwhen (does|is|will)\b/i],
+  ['Catchphrase', /what (you|u|ya) know (bout|about) flavou?r/i],
+  ['The music', /\btune|soundtrack|\baudio\b|anthem|\bsong\b|on repeat|the track|in the booth|bless the|tracksontap|wizxrdmusic|🎵|🎶|🔊/i],
+  ['Cast spotted', /\bcast\b|familiar face|is that me|was that|did i see|certified|that'?s (my|our)|spotted|\bcameo\b|angelina/i],
+  ['Funny', /😂|🤣|😭|💀|\blol\b|\blmao|\bhaha|\bdead\b|\bcrying\b|\bi'?m weak\b|stealing this/i],
+  ['Delivery apps', /deliveroo|\broo\b|uber ?eats|just ?eat|delivery/i],
+  ['Old orders', /past orders?|backed up|back ?date|claim back|orders? from \d+ days|left my receipt|old receipts?|so many points by now|years? of ordering/i],
+  ['Wants an app', /need an app|make an app|get an app|an app,? please|no app|apple wallet|google wallet|phone storage/i],
+  ['Wants a store', /(branch|store|shop|wingstop|one) (in|near|to) [a-z]|when (is|does) .* open|come to [A-Z]|open (one )?in [a-z]|need (a|one) in/i],
+];
+const PLACE_RE = /(?:branch|store|shop|wingstop|one|open|opening|come to|coming to) (?:in|to|near) ([A-Za-z][a-zA-Z'-]{2,}(?: [A-Z][a-zA-Z'-]{2,})?)/;
+const NOT_PLACE = /^(the|this|that|wingstop|flavour|club|uk|me|my|your|our|town|area|city|here|there|every|all|time)$/i;
+const EMOJI_RE = /\p{Extended_Pictographic}/gu;
+const isEmojiOnly = (t: string) => t.replace(/@[\w.]+/g, '').replace(EMOJI_RE, '').replace(/[\s‍️!.?]/g, '') === '' && EMOJI_RE.test(t);
+
+export interface FcListen { signals: FcSignal[]; tags: number; place: string | null; emojis: string[] }
+export function listen(item: FcComment): FcListen {
+  const t = item.c.text ?? '';
+  const signals = SIG.filter(([, re]) => re.test(t)).map(([s]) => s);
+  const tags = (t.match(/@[\w.]+/g) ?? []).filter((h) => !/^@wingstop/i.test(h)).length;
+  if (tags > 0) signals.push('Tagging mates');
+  if (item.theme === 'Pushback') signals.push('Pushback');
+  if (isEmojiOnly(t)) signals.push('Pure emoji');
+  // A "how do I join" question is a sign of intent too.
+  if (item.theme === 'Question' && item.topic === 'Sign-up' && !signals.includes('Wants to join')) signals.push('Wants to join');
+  const m = t.match(PLACE_RE); const raw = (m?.[1] ?? '').trim();
+  const place = signals.includes('Wants a store') ? (raw && !NOT_PLACE.test(raw) ? raw.replace(/^./, (c) => c.toUpperCase()) : null) : null;
+  return { signals: [...new Set(signals)], tags, place, emojis: t.match(EMOJI_RE) ?? [] };
+}
+
+export interface FcListening {
+  total: number;
+  ladder: { step: 'Reacting' | 'Asking how' | 'Wants to join' | 'Says signed up'; n: number; note: string }[];
+  signal: Record<FcSignal, number>;
+  friendsTagged: number; tagShare: number;
+  emojis: { e: string; n: number }[];
+  places: { place: string; n: number }[];
+  mood: { positive: number; negative: number; net: number | null };
+}
+/** Exec view of the comments: an intent ladder, advocacy (friends tagged), what's driving talk, emoji mood and store demand. */
+export function listening(items: FcComment[]): FcListening {
+  const ls = items.map((i) => ({ i, l: listen(i) }));
+  const has = (s: FcSignal) => ls.filter((x) => x.l.signals.includes(s)).length;
+  const signal = Object.fromEntries(FC_SIGNALS.map((s) => [s, has(s)])) as Record<FcSignal, number>;
+  const signedUp = signal['Signed up'], wants = ls.filter((x) => x.l.signals.includes('Wants to join') && !x.l.signals.includes('Signed up')).length;
+  const asking = ls.filter((x) => x.l.signals.includes('Asking how') && !x.l.signals.includes('Wants to join') && !x.l.signals.includes('Signed up')).length;
+  const emo = new Map<string, number>();
+  for (const x of ls) for (const e of new Set(x.l.emojis)) emo.set(e, (emo.get(e) ?? 0) + 1);
+  const pl = new Map<string, number>();
+  for (const x of ls) if (x.l.place) pl.set(x.l.place, (pl.get(x.l.place) ?? 0) + 1);
+  const pos = items.filter((i) => i.sentiment === 'positive').length, neg = items.filter((i) => i.sentiment === 'negative' || i.theme === 'Pushback').length;
+  return {
+    total: items.length,
+    ladder: [
+      { step: 'Reacting', n: items.length - signedUp - wants - asking, note: 'Hype, tags, emoji: aware and warm' },
+      { step: 'Asking how', n: asking, note: 'Questions about how it works' },
+      { step: 'Wants to join', n: wants, note: '"Sign me up", "how do I join"' },
+      { step: 'Says signed up', n: signedUp, note: 'Told us they joined' },
+    ],
+    signal,
+    friendsTagged: ls.reduce((s, x) => s + x.l.tags, 0),
+    tagShare: items.length ? signal['Tagging mates'] / items.length : 0,
+    emojis: [...emo.entries()].map(([e, n]) => ({ e, n })).sort((a, b) => b.n - a.n).slice(0, 10),
+    places: [...pl.entries()].map(([place, n]) => ({ place, n })).sort((a, b) => b.n - a.n),
+    mood: { positive: pos, negative: neg, net: pos + neg ? (pos - neg) / (pos + neg) : null },
+  };
+}
+
+/** How club posts did against our usual posts on the same platform (median of the 90 days before launch). */
+export function versusUsual(posts: Pick<Media, 'platform' | 'views' | 'shares' | 'saves' | 'comments'>[], baseline: { platform: string; views: number | null; shares: number | null; saves: number | null; comments: number | null }[]) {
+  const med = (xs: number[]) => { const s = xs.filter((x) => Number.isFinite(x)).sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
+  const out: { metric: 'views' | 'shares' | 'saves' | 'comments'; club: number | null; usual: number | null; index: number | null }[] = [];
+  for (const metric of ['views', 'shares', 'saves', 'comments'] as const) {
+    // Per platform first so TikTok's bigger numbers don't swamp Instagram, then averaged.
+    const idx: number[] = []; const clubs: number[] = []; const usuals: number[] = [];
+    for (const p of ['Instagram', 'TikTok']) {
+      const c = med(posts.filter((x) => x.platform === p).map((x) => x[metric] ?? NaN)), u = med(baseline.filter((x) => x.platform === p).map((x) => x[metric] ?? NaN));
+      if (c != null && u) { idx.push(c / u); clubs.push(c); usuals.push(u); }
+    }
+    out.push({ metric, club: clubs.length ? clubs.reduce((a, b) => a + b, 0) / clubs.length : null, usual: usuals.length ? usuals.reduce((a, b) => a + b, 0) / usuals.length : null, index: idx.length ? idx.reduce((a, b) => a + b, 0) / idx.length : null });
+  }
+  return out;
+}
