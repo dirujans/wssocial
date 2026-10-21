@@ -324,7 +324,7 @@ export async function fetchAudience(): Promise<AudienceDemo[]> {
 
 /* ---------- Paid (Meta and TikTok ad accounts) ---------- */
 
-const META_AD_FIELDS = ['date', 'account_id', 'account_name', 'campaign_id', 'campaign', 'campaign_objective', 'ad_id', 'ad_name', 'publisher_platform', 'instagram_permalink_url',
+const META_AD_FIELDS = ['date', 'account_id', 'account_name', 'campaign_id', 'campaign', 'campaign_objective', 'ad_id', 'ad_name', 'publisher_platform', 'instagram_permalink_url', 'source_instagram_media_id',
   'spend', 'impressions', 'reach', 'clicks', 'actions_link_click', 'actions_video_view', 'video_thruplay_watched_actions_video_view',
   'actions_post_reaction', 'actions_comment', 'actions_post', 'actions_onsite_conversion_post_save'];
 const TIKTOK_AD_FIELDS = ['date', 'account_id', 'account_name', 'campaign_id', 'campaign_name', 'objective_type', 'ad_id', 'ad_name', 'item_id', 'identity_type',

@@ -15,7 +15,7 @@ function Thumb({ m }: { m: Media }) {
   return <img src={m.thumb_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
 }
 
-export default function PostWall({ media, comments, from, channel, title = 'What landed', eyebrow = 'Instagram UK & IE and TikTok · tap to play', id = 'posts' }: { media: Media[]; comments: Comment[]; from: string; channel: ChannelFilter; title?: string; eyebrow?: string; id?: string }) {
+export default function PostWall({ media, comments, from, channel, title = 'What landed', eyebrow = 'Instagram UK & IE and TikTok · tap to play', id = 'posts', paidViews }: { media: Media[]; comments: Comment[]; from: string; channel: ChannelFilter; title?: string; eyebrow?: string; id?: string; /** Views from ads already inside each post's views, by comment_key. */ paidViews?: Record<string, number> }) {
   const [sort, setSort] = useState<PostSort>('shares');
   const [limit, setLimit] = useState(12);
   const [open, setOpen] = useState<Media | null>(null);
@@ -64,7 +64,7 @@ export default function PostWall({ media, comments, from, channel, title = 'What
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-start' }}>
                         <span className="plat"><i style={{ background: CHANNEL_COLOUR[m.platform] }} />{m.platform}</span>
                         {mult != null && mult >= 2 && <span className="badge">{mult.toFixed(1)}× usual shares</span>}
-                        {boosted && <span className="badge boost">Likely boosted</span>}
+                        {paidViews?.[m.comment_key] ? <span className="badge boost">{compact(paidViews[m.comment_key])} views from ads</span> : boosted && <span className="badge boost">Likely boosted</span>}
                       </span>
                       <span className="rank">{i + 1}</span>
                     </span>

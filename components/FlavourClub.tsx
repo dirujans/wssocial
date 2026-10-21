@@ -49,6 +49,24 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
     return { ...p, views: Math.max(0, (p.views ?? 0) - sp.reduce((s, a) => s + (a.video_views ?? 0), 0)), shares: Math.max(0, (p.shares ?? 0) - sp.reduce((s, a) => s + (a.shares ?? 0), 0)) };
   }), [data.posts, data.ads]);
   const vs = useMemo(() => versusUsual(organicPosts, data.baseline), [organicPosts, data.baseline]);
+  // Club post cards show what the apps show: Instagram post stats are organic only, so a boost's own numbers are added back;
+  // TikTok post stats already include Spark plays. Each card says how much came from ads.
+  const { wallPosts, paidViews } = useMemo(() => {
+    const paid: Record<string, number> = {};
+    const posts = data.posts.map((p) => {
+      if (p.platform === 'TikTok') {
+        const sp = data.ads.filter((a) => a.platform === 'TikTok' && a.post_key === p.comment_key).reduce((s, a) => s + (a.video_views ?? 0), 0);
+        if (sp) paid[p.comment_key] = Math.min(sp, p.views ?? 0);
+        return p;
+      }
+      const boost = data.ads.filter((a) => a.platform === 'Meta' && a.placement === 'instagram' && a.post_key === p.comment_key);
+      if (!boost.length) return p;
+      const add = (k: 'impressions' | 'shares' | 'saves') => boost.reduce((s, a) => s + (Number(a[k]) || 0), 0);
+      paid[p.comment_key] = add('impressions');
+      return { ...p, views: (p.views ?? 0) + add('impressions'), shares: (p.shares ?? 0) + add('shares'), saves: (p.saves ?? 0) + add('saves') };
+    });
+    return { wallPosts: posts, paidViews: paid };
+  }, [data.posts, data.ads]);
   const opinion = items.filter((i) => i.sentiment !== 'neutral');
   const positive = opinion.length ? items.filter((i) => i.sentiment === 'positive').length / opinion.length : null;
   const questions = items.filter((i) => i.theme === 'Question');
@@ -129,7 +147,7 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
 
       <FcScans rows={data.links} stores={data.stores} />
 
-      <PostWall media={data.posts} comments={data.comments} from="2000-01-01" channel="All" id="club-posts" title="Club posts" eyebrow="Every post about Flavour Club · tap to play and read the comments" />
+      <PostWall media={wallPosts} paidViews={paidViews} comments={data.comments} from="2000-01-01" channel="All" id="club-posts" title="Club posts" eyebrow="Every post about Flavour Club · organic plus ads, as the apps count them · tap to play and read the comments" />
 
       <section className="band" id="questions">
         <div className="inner">

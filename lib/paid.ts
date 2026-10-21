@@ -41,7 +41,9 @@ export function mapMetaAds(rows: Row[]): AdDay[] {
       day: s(r.date), platform: 'Meta', placement: s(r.publisher_platform) || 'all', ad_id: s(r.ad_id),
       account_id: account || null, account_name: s(r.account_name) || null, agency: agencyOf('Meta', account, s(r.campaign)),
       campaign_id: s(r.campaign_id) || null, campaign: s(r.campaign) || null, objective: s(r.campaign_objective) || null, ad_name: s(r.ad_name) || null,
-      post_key: r.instagram_permalink_url ? normLink(r.instagram_permalink_url) : null, post_link: s(r.instagram_permalink_url) || null, spark: null,
+      // A boost runs as its own ad post with a different link; source_instagram_media_id names the organic post it came from.
+      // "ig_<id>" is resolved to that post's key in adsSync; unresolved, it falls back to the ad's own link.
+      post_key: r.source_instagram_media_id ? `ig_${s(r.source_instagram_media_id)}` : r.instagram_permalink_url ? normLink(r.instagram_permalink_url) : null, post_link: s(r.instagram_permalink_url) || null, spark: null,
       spend: n(r.spend) ?? 0, impressions: n(r.impressions) ?? 0, reach: n(r.reach), clicks: n(r.clicks), link_clicks: n(r.actions_link_click),
       video_views: n(r.actions_video_view), thruplays: n(r.video_thruplay_watched_actions_video_view),
       likes: n(r.actions_post_reaction), comments: n(r.actions_comment), shares: n(r.actions_post), saves: n(r.actions_onsite_conversion_post_save),
