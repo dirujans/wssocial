@@ -1,6 +1,6 @@
 import 'server-only';
 import type { TikTokAccountDay, TikTokVideo, TrendRow } from './tiktok';
-import { fcMentions, FC_LAUNCH, isFcPost, isFcText, type FcEntry, type FcLinkDay, type FcStore } from './flavourClub';
+import { fcMentions, FC_LAUNCH, isFcPost, isFcText, type FcAd, type FcEntry, type FcLinkDay, type FcStore } from './flavourClub';
 import { shiftDay } from './metrics';
 import { supabaseAdmin } from './supabase';
 import type { AccountDay, Alert, AudienceDemo, CityDay, NsoCreator, NsoOpening, NsoPage, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
@@ -172,6 +172,8 @@ export interface FlavourClubData {
   links: FcLinkDay[];
   stores: FcStore[];
   /** Our non-club posts in the 90 days before launch, to read club posts against. */
+  /** Flavour Club ads (campaign or ad named for the club, or Spark on a club post). No spend. */
+  ads: FcAd[];
   baseline: { platform: string; views: number | null; shares: number | null; saves: number | null; comments: number | null }[];
   lastSync: { status: string; finished_at: string } | null;
 }
@@ -192,6 +194,18 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
   ]);
   const bl = await db.from('media').select('platform,views,shares,saves,comments,caption,posted').gte('posted', shiftDay(FC_LAUNCH, -90)).lt('posted', FC_LAUNCH).in('platform', ['Instagram', 'TikTok']);
   if (bl.error) throw new Error(bl.error.message);
+  const clubKeys = ((m.data ?? []) as Media[]).filter(isFcPost).map((p) => p.comment_key).filter(Boolean);
+  // Filtered in the database: all ad rows since launch would pass Supabase's 1,000-row cap.
+  const adCols = 'day,ad_id,platform,placement,post_key,spark,impressions,video_views,shares,saves,ad_name';
+  const [byName, byPost] = await Promise.all([
+    db.from('ads_daily').select(adCols).gte('day', since).or('campaign.ilike.*flavour club*,campaign.ilike.*flavourclub*,ad_name.ilike.*flavour club*,campaign.ilike.*founding member*'),
+    clubKeys.length ? db.from('ads_daily').select(adCols).gte('day', since).in('post_key', clubKeys) : Promise.resolve({ data: [], error: null }),
+  ]);
+  for (const r of [byName, byPost]) if (r.error) throw new Error(r.error.message);
+  const seen = new Set<string>();
+  const fcAds: FcAd[] = ([...(byName.data ?? []), ...(byPost.data ?? [])] as (FcAd & { day: string; ad_id: string })[])
+    .filter((a) => { const k = `${a.day}|${a.platform}|${a.ad_id}|${a.placement}`; if (seen.has(k)) return false; seen.add(k); return true; })
+    .map(({ day: _d, ad_id: _a, ...a }) => ({ ...a, impressions: Number(a.impressions ?? 0) }));
   for (const r of [m, me, en, mk, co, s, ln, sto]) if (r.error) throw new Error(r.error.message);
   const posts = ((m.data ?? []) as Media[]).filter(isFcPost);
   const keys = posts.map((p) => p.comment_key).filter(Boolean);
@@ -206,6 +220,7 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
     loyalty: ((co.data ?? []) as CompetitorItem[]).filter((i) => /loyal|reward|app\b|points|stamp|club/i.test(`${i.title} ${i.summary ?? ''}`)),
     links: (ln.data ?? []) as FcLinkDay[],
     stores: (sto.data ?? []) as FcStore[],
+    ads: fcAds,
     baseline: ((bl.data ?? []) as (Media & { caption: string })[]).filter((x) => !isFcText(x.caption)).map(({ platform, views, shares, saves, comments }) => ({ platform, views, shares, saves, comments })),
     lastSync: (s.data?.[0] as FlavourClubData['lastSync']) ?? null,
   };

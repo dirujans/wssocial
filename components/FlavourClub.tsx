@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { FlavourClubData } from '@/lib/data';
-import { classifyFc, FC_HASHTAG, FC_LAUNCH, FC_SITE, isOwnAuthor, listen, listening, opportunities, versusUsual, type FcEntry, type FcTopic } from '@/lib/flavourClub';
+import { classifyFc, fcPulse, FC_HASHTAG, FC_LAUNCH, FC_SITE, isOwnAuthor, listen, listening, opportunities, versusUsual, type FcEntry, type FcSplit, type FcTopic } from '@/lib/flavourClub';
 import CountUp from './CountUp';
 import { LphFooter } from './Brand';
 import FcCommentWall, { type Heard } from './FcCommentWall';
@@ -29,16 +29,25 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
   const [showAnswered, setShowAnswered] = useState(false);
   const [entryFilter, setEntryFilter] = useState<'all' | 'shortlist' | 'winner'>('all');
   const [err, setErr] = useState<string | null>(null);
+  const [split, setSplit] = useState<FcSplit>('combined');
 
   // Our own replies (TikTok names them) are kept for the post threads but left out of every count.
   const heard = useMemo<Heard[]>(() => data.comments.map(classifyFc).map((i) => ({ ...i, l: listen(i), ours: isOwnAuthor(i.c.author) })), [data.comments]);
   const items = useMemo(() => heard.filter((h) => !h.ours), [heard]);
   const ourReplies = heard.length - items.length;
   const heardSummary = useMemo(() => listening(items), [items]);
-  const vs = useMemo(() => versusUsual(data.posts, data.baseline), [data.posts, data.baseline]);
   const opps = useMemo(() => opportunities(items, entries.length), [items, entries.length]);
   const dayN = daysBetween(FC_LAUNCH, today) + 1;
-  const sum = (k: 'views' | 'likes' | 'comments' | 'shares' | 'saves' | 'reach') => data.posts.reduce((s, p) => s + (p[k] ?? 0), 0);
+  // Organic and paid kept apart: Instagram post numbers exclude ads (ads added on top), TikTok post numbers include Spark Ads (taken out).
+  const pulse = useMemo(() => fcPulse(data.posts, data.ads), [data.posts, data.ads]);
+  const tot = (m: 'views' | 'shares' | 'saves', sp: FcSplit) => pulse[m][sp].Instagram + pulse[m][sp].TikTok;
+  // Read club posts against our usual on organic only, so Spark plays don't flatter TikTok.
+  const organicPosts = useMemo(() => data.posts.map((p) => {
+    if (p.platform !== 'TikTok') return p;
+    const sp = data.ads.filter((a) => a.platform === 'TikTok' && a.post_key === p.comment_key);
+    return { ...p, views: Math.max(0, (p.views ?? 0) - sp.reduce((s, a) => s + (a.video_views ?? 0), 0)), shares: Math.max(0, (p.shares ?? 0) - sp.reduce((s, a) => s + (a.shares ?? 0), 0)) };
+  }), [data.posts, data.ads]);
+  const vs = useMemo(() => versusUsual(organicPosts, data.baseline), [organicPosts, data.baseline]);
   const opinion = items.filter((i) => i.sentiment !== 'neutral');
   const positive = opinion.length ? items.filter((i) => i.sentiment === 'positive').length / opinion.length : null;
   const questions = items.filter((i) => i.theme === 'Question');
@@ -65,7 +74,7 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <h1><span className="sr-only">Flavour Club</span><img src="/brand/flavour-club.png" alt="" className="fc-logo" /></h1>
           <p className="take">
-            {data.posts.length ? <><b>{compact(sum('views'))}</b> views and <b>{int(items.length)}</b> fan comments on {data.posts.length} club post{data.posts.length === 1 ? '' : 's'}{vs[0].index != null ? <>, views running at <b>{vs[0].index.toFixed(1)}×</b> our usual post</> : null}. </> : <>The launch post lands at the next sync. </>}
+            {data.posts.length ? <><b>{compact(tot('views', 'combined'))}</b> views ({compact(tot('views', 'organic'))} organic, {compact(tot('views', 'paid'))} from ads) and <b>{int(items.length)}</b> fan comments on {data.posts.length} club post{data.posts.length === 1 ? '' : 's'}{vs[0].index != null ? <>, organic views at <b>{vs[0].index.toFixed(1)}×</b> our usual post</> : null}. </> : <>The launch post lands at the next sync. </>}
             {positive != null && <><b>{pct(positive, 0)}</b> of comments with an opinion are positive. </>}
             <b>{int(heardSummary.ladder[3].n)}</b> say they&apos;ve joined, <b>{int(heardSummary.ladder[2].n)}</b> want to, and <b>{int(heardSummary.friendsTagged)}</b> friends have been tagged in. <b>{open.length}</b> questions are waiting for an answer.
           </p>
@@ -83,19 +92,27 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
 
       <section className="band" id="pulse">
         <div className="inner">
-          <div className="band-head"><div><span className="eyebrow">All club posts, Instagram and TikTok, since launch</span><h2>The pulse</h2></div></div>
+          <div className="band-head">
+            <div><span className="eyebrow">All club posts, Instagram and TikTok, since launch · plus Flavour Club ads</span><h2>The pulse</h2></div>
+            <div className="seg" role="group" aria-label="Organic or paid">
+              {([['organic', 'Organic'], ['paid', 'Paid'], ['combined', 'Combined']] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={split === k} onClick={() => setSplit(k)}>{l}</button>)}
+            </div>
+          </div>
           <div className="big3">
             {([['views', 'Views', 'How far the club announcement has travelled.'], ['shares', 'Shares', 'People sending the club to someone else: the best sign it lands.'], ['saves', 'Saves', 'People keeping it to come back to: intent to sign up.']] as const).map(([k, l, why], i) => (
               <article key={k} className={`big-card rise d${i + 1} ${i === 0 ? 'lead' : ''}`}>
                 <span className="label">{l}</span>
-                <div className="value"><CountUp value={sum(k)} format={(n) => compact(Math.round(n))} /></div>
-                <div className="meta"><span className="split">{data.posts.slice(0, 3).map((p) => <span key={p.id}>{p.platform} {compact(p[k])}</span>)}</span></div>
-                <p className="why-note">{why}</p>
+                <div className="value"><CountUp value={tot(k, split)} format={(n) => compact(Math.round(n))} /></div>
+                <div className="meta">
+                  <span className={i === 0 ? '' : 'muted'}>{split === 'combined' ? `${compact(tot(k, 'organic'))} organic + ${compact(tot(k, 'paid'))} paid` : split === 'organic' ? 'Ads taken out' : 'From ads only'}</span>
+                  <span className="split"><span>Instagram {compact(pulse[k][split].Instagram)}</span><span>TikTok {compact(pulse[k][split].TikTok)}</span></span>
+                </div>
+                <p className="why-note">{why}{k === 'views' && split !== 'organic' ? ' Paid Instagram counts ad impressions, the same way Instagram counts post views.' : ''}{k === 'saves' && split !== 'organic' ? ' TikTok does not report saves on ads.' : ''}</p>
               </article>
             ))}
           </div>
           <div className="small4">
-            <div className="mini"><span className="eyebrow">Comments</span><div className="value"><CountUp value={data.comments.length} format={(n) => int(n)} /></div><div className="meta muted">captured on club posts</div></div>
+            <div className="mini"><span className="eyebrow">Comments</span><div className="value"><CountUp value={items.length} format={(n) => int(n)} /></div><div className="meta muted">from fans{ourReplies ? `, plus ${int(ourReplies)} TikTok replies from us` : ''}</div></div>
             <div className="mini"><span className="eyebrow">Positive</span><div className="value">{positive != null ? pct(positive, 0) : '—'}</div><div className="meta muted">of comments with an opinion</div></div>
             <div className="mini hot"><span className="eyebrow">Open questions</span><div className="value"><CountUp value={open.length} format={(n) => int(n)} /></div><div className="meta muted">of {questions.length} asked</div></div>
             <div className="mini"><span className="eyebrow">#{FC_HASHTAG}</span><div className="value"><CountUp value={entries.length} format={(n) => int(n)} /></div><div className="meta muted">{entries.filter((e) => e.status === 'shortlist').length} shortlisted</div></div>

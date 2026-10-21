@@ -101,3 +101,19 @@ test('listen: reads intent, advocacy, catchphrase, cast and store demand', async
   assert.equal(l.ladder.find((x) => x.step === 'Says signed up')!.n, 1);
   assert.equal(l.friendsTagged, 1);
 });
+
+test('fcPulse: Instagram ads add on top, TikTok Spark comes out of the post', async () => {
+  const { fcPulse } = await import('../lib/flavourClub');
+  const posts = [{ platform: 'TikTok' as const, comment_key: 't1', views: 1000, shares: 50, saves: 10 }, { platform: 'Instagram' as const, comment_key: 'i1', views: 400, shares: 20, saves: 5 }];
+  const ads = [
+    { platform: 'TikTok' as const, placement: 'tiktok', post_key: 't1', spark: true, impressions: 700, video_views: 600, shares: 2, saves: null, ad_name: 'x' },
+    { platform: 'Meta' as const, placement: 'instagram', post_key: 'dark', spark: null, impressions: 300, video_views: 90, shares: 7, saves: 3, ad_name: 'y' },
+    { platform: 'Meta' as const, placement: 'other', post_key: 'dark', spark: null, impressions: 999, video_views: 9, shares: 9, saves: 9, ad_name: 'y' },
+  ];
+  const p = fcPulse(posts, ads);
+  assert.deepEqual(p.views.organic, { Instagram: 400, TikTok: 400 });
+  assert.deepEqual(p.views.paid, { Instagram: 300, TikTok: 600 });
+  assert.deepEqual(p.views.combined, { Instagram: 700, TikTok: 1000 });
+  assert.deepEqual(p.shares.organic, { Instagram: 20, TikTok: 48 });
+  assert.deepEqual(p.saves.paid, { Instagram: 3, TikTok: 0 });
+});

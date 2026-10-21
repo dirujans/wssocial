@@ -252,3 +252,34 @@ export function versusUsual(posts: Pick<Media, 'platform' | 'views' | 'shares' |
   }
   return out;
 }
+
+// ---- Pulse split: organic, paid, combined ----
+/** Flavour Club ad rows (no spend: the Flavour Club area never sees money). */
+export interface FcAd { platform: 'Meta' | 'TikTok'; placement: string; post_key: string | null; spark: boolean | null; impressions: number; video_views: number | null; shares: number | null; saves: number | null; ad_name: string | null }
+export type FcSplit = 'organic' | 'paid' | 'combined';
+type PlatSplit = { Instagram: number; TikTok: number };
+export interface FcPulse { views: Record<FcSplit, PlatSplit>; shares: Record<FcSplit, PlatSplit>; saves: Record<FcSplit, PlatSplit>; paidShareOfViews: number }
+/**
+ * Club post totals split into organic and paid, the same rules as the Social page:
+ * - Instagram post figures are organic only (Meta), so Instagram ads are added on top: ad impressions on the Instagram placement
+ *   count as views (Instagram's "views" counts every display, like an impression), plus the ads' own shares and saves.
+ * - TikTok post figures include Spark Ad plays and shares, so those are taken out of the post for organic.
+ * - TikTok doesn't report saves on ads, so TikTok saves all sit in organic.
+ */
+export function fcPulse(posts: Pick<Media, 'platform' | 'comment_key' | 'views' | 'shares' | 'saves'>[], ads: FcAd[]): FcPulse {
+  const z = (): PlatSplit => ({ Instagram: 0, TikTok: 0 });
+  const out = { views: { organic: z(), paid: z(), combined: z() }, shares: { organic: z(), paid: z(), combined: z() }, saves: { organic: z(), paid: z(), combined: z() } };
+  for (const p of posts) {
+    const plat = p.platform === 'TikTok' ? 'TikTok' : 'Instagram';
+    const spark = plat === 'TikTok' ? ads.filter((a) => a.platform === 'TikTok' && a.post_key === p.comment_key) : [];
+    const sv = spark.reduce((s, a) => s + (a.video_views ?? 0), 0), ss = spark.reduce((s, a) => s + (a.shares ?? 0), 0);
+    const v = p.views ?? 0, sh = p.shares ?? 0;
+    out.views.organic[plat] += Math.max(0, v - sv); out.views.paid[plat] += Math.min(v, sv);
+    out.shares.organic[plat] += Math.max(0, sh - ss); out.shares.paid[plat] += Math.min(sh, ss);
+    out.saves.organic[plat] += p.saves ?? 0;
+  }
+  for (const a of ads) if (a.platform === 'Meta' && a.placement === 'instagram') { out.views.paid.Instagram += a.impressions; out.shares.paid.Instagram += a.shares ?? 0; out.saves.paid.Instagram += a.saves ?? 0; }
+  for (const m of ['views', 'shares', 'saves'] as const) for (const pl of ['Instagram', 'TikTok'] as const) out[m].combined[pl] = out[m].organic[pl] + out[m].paid[pl];
+  const tot = (x: PlatSplit) => x.Instagram + x.TikTok;
+  return { ...out, paidShareOfViews: tot(out.views.combined) ? tot(out.views.paid) / tot(out.views.combined) : 0 };
+}
