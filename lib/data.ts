@@ -2,6 +2,7 @@ import 'server-only';
 import type { TikTokAccountDay, TikTokVideo, TrendRow } from './tiktok';
 import { fcMentions, FC_LAUNCH, isFcPost, isFcText, type FcAd, type FcEntry, type FcLinkDay, type FcStore } from './flavourClub';
 import { shiftDay } from './metrics';
+import type { IgStory } from './windsor';
 import { supabaseAdmin } from './supabase';
 import type { AccountDay, Alert, AudienceDemo, CityDay, NsoCreator, NsoOpening, NsoPage, Comment, CompetitorAccountDay, CompetitorItem, CompetitorPost, Media, Mention, Post, ProfileDay } from './types';
 import { packAds, type AdDay, type PackedAds, type PostLike } from './paid';
@@ -174,6 +175,8 @@ export interface FlavourClubData {
   /** Our non-club posts in the 90 days before launch, to read club posts against. */
   /** Flavour Club ads (campaign or ad named for the club, or Spark on a club post). No spend. */
   ads: FcAd[];
+  /** Our Instagram Stories since launch, captured before Instagram drops their stats. */
+  stories: IgStory[];
   baseline: { platform: string; views: number | null; shares: number | null; saves: number | null; comments: number | null }[];
   lastSync: { status: string; finished_at: string } | null;
 }
@@ -192,6 +195,8 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
     db.from('fc_link_days').select('day,bitlink,destination,clicks,scans,total').order('day').limit(50000),
     db.from('fc_stores').select('code,name,place,region,lat,lng'),
   ]);
+  const st = await db.from('ig_stories').select('*').gte('posted_at', `${FC_LAUNCH}T00:00:00Z`).order('posted_at', { ascending: false }).limit(500);
+  if (st.error) throw new Error(st.error.message);
   const bl = await db.from('media').select('platform,views,shares,saves,comments,caption,posted').gte('posted', shiftDay(FC_LAUNCH, -90)).lt('posted', FC_LAUNCH).in('platform', ['Instagram', 'TikTok']);
   if (bl.error) throw new Error(bl.error.message);
   const clubKeys = ((m.data ?? []) as Media[]).filter(isFcPost).map((p) => p.comment_key).filter(Boolean);
@@ -221,6 +226,7 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
     links: (ln.data ?? []) as FcLinkDay[],
     stores: (sto.data ?? []) as FcStore[],
     ads: fcAds,
+    stories: (st.data ?? []) as IgStory[],
     baseline: ((bl.data ?? []) as (Media & { caption: string })[]).filter((x) => !isFcText(x.caption)).map(({ platform, views, shares, saves, comments }) => ({ platform, views, shares, saves, comments })),
     lastSync: (s.data?.[0] as FlavourClubData['lastSync']) ?? null,
   };

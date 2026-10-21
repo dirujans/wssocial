@@ -8,6 +8,7 @@ import { LphFooter } from './Brand';
 import FcCommentWall, { type Heard } from './FcCommentWall';
 import FcListeningPanel from './FcListening';
 import FcScans from './FcScans';
+import FcStories from './FcStories';
 import PostWall from './PostWall';
 import SectionNav from './SectionNav';
 import SyncButton from './SyncButton';
@@ -123,6 +124,8 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
       <FcListeningPanel l={heardSummary} vs={vs} ourReplies={ourReplies} fanQuestions={questions.length} />
 
       <FcCommentWall heard={heard} posts={data.posts} />
+
+      <FcStories stories={data.stories} marks={marks} onMark={setMark} />
 
       <FcScans rows={data.links} stores={data.stores} />
 
@@ -264,13 +267,13 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
           <div className="feed">
             <article className="item" data-p="high"><div className="title">Members, the number that matters</div><div className="sum">Sign-ups, active members, stamps earned and rewards redeemed live in the Flavour Club platform. Connect it (or GA4 on flavourclub.co.uk) and this page can read social and scans against real joins.</div></article>
             <article className="item" data-p="medium"><div className="title">Who is commenting on Instagram</div><div className="sum">Meta doesn&apos;t give commenter names, so Instagram replies from us can&apos;t be split out and repeat commenters can&apos;t be counted. TikTok gives both.</div></article>
-            <article className="item" data-p="medium"><div className="title">Stories, tags and private accounts</div><div className="sum">Story mentions, photo tags and private posts are invisible to every tool we have. Ask founding-member entrants to post publicly with #{FC_HASHTAG}.</div></article>
+            <article className="item" data-p="medium"><div className="title">Other people&apos;s Stories, tags and private accounts</div><div className="sum">Our own Stories are now captured (above). Other people&apos;s Story mentions only arrive as messages in our Instagram inbox; photo tags and private posts are invisible to every tool we have. Ask founding-member entrants to post publicly with #{FC_HASHTAG}.</div></article>
             <article className="item" data-p="low"><div className="title">Conversation beyond our posts</div><div className="sum">Reddit, X, reviews and press come from the morning report, not a live feed. A listening tool (Brandwatch, Talkwalker or similar) would add volume and share of voice across the web.</div></article>
           </div>
         </div>
       </section>
 
-      <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'listening', label: 'Listening' }, { id: 'comments-wall', label: 'Comment wall' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }, { id: 'blind-spots', label: 'Blind spots' }]} />
+      <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'listening', label: 'Listening' }, { id: 'comments-wall', label: 'Comment wall' }, { id: 'stories', label: 'Our Stories' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }, { id: 'blind-spots', label: 'Blind spots' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
         <div className="inner"><p className="cap">Flavour Club only. Our posts and comments from Instagram and TikTok via Windsor.ai; hashtag entries via Apify; QR scans via Bitly; press and chatter from the morning report. Themes and topics are keyword rules.</p><LphFooter /></div>
       </footer>

@@ -3,6 +3,7 @@ import { buildAlerts } from './alerts';
 import { runApifyStep } from './apifyJobs';
 import { geocodeStores } from './stores';
 import { syncAds } from './adsSync';
+import { syncStories } from './storiesSync';
 import { supabaseAdmin } from './supabase';
 import { fetchAccountDays, fetchAudience, fetchComments, fetchCompetitorSocial, fetchMedia, fetchPosts, fetchProfileDays } from './windsor';
 
@@ -11,7 +12,7 @@ export interface SyncResult { status: 'ok' | 'partial' | 'error'; errors: string
 const why = (r: PromiseRejectedResult) => String(r.reason?.message ?? r.reason);
 
 /** Pull Windsor into Supabase and raise alerts. Each source is independent: one failing never blocks the rest. */
-export type SyncPart = 'core' | 'intel' | 'all';
+export type SyncPart = 'core' | 'intel' | 'stories' | 'all';
 
 const skip = <T,>(): Promise<T> => Promise.reject(new Error('__skipped__'));
 
@@ -20,6 +21,19 @@ const skip = <T,>(): Promise<T> => Promise.reject(new Error('__skipped__'));
  * The cron runs them as separate calls so each stays well inside the 60s function limit.
  */
 export async function runSync(part: SyncPart = 'all'): Promise<SyncResult> {
+  // Stories only: a few seconds, run several times a day so 24-hour Story stats are caught before Instagram drops them.
+  if (part === 'stories') {
+    const started_at = new Date().toISOString();
+    try {
+      const r = await syncStories();
+      await supabaseAdmin().from('sync_log').insert({ job: 'windsor', status: 'ok', started_at, finished_at: new Date().toISOString(), detail: { part, stories: r, errors: [] } });
+      return { status: 'ok', stories: r, errors: [] };
+    } catch (e) {
+      const msg = `Stories: ${(e as Error).message}`;
+      await supabaseAdmin().from('sync_log').insert({ job: 'windsor', status: 'error', started_at, finished_at: new Date().toISOString(), detail: { part, errors: [msg] } });
+      return { status: 'error', errors: [msg] };
+    }
+  }
   const core = part !== 'intel', intel = part !== 'core';
   // Write a 'running' row first: if the function is killed at the 60s limit, the dashboard shows it instead of silence.
   const startedIso = new Date().toISOString();
@@ -100,6 +114,7 @@ export async function runSync(part: SyncPart = 'all'): Promise<SyncResult> {
 
   // Apify scrapes (competitor TikTok, UK trends): collect finished runs, start due ones. Never fails the sync.
   // Paid: last 7 days of every ad (both Meta accounts and TikTok). Independent of everything else.
+  if (intel) { try { detail.stories = await syncStories(); } catch (e) { errors.push(`Stories: ${(e as Error).message}`); } }
   if (intel) { try { detail.ads = await syncAds(); } catch (e) { errors.push(`Ads: ${(e as Error).message}`); } }
   if (intel) { try { detail.apify = await runApifyStep(); } catch (e) { errors.push(`Apify: ${(e as Error).message}`); } }
   // New Flavour Club stores (from Bitly) get placed on the scans map; quick, capped, and never blocks the sync.

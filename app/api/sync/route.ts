@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     return new Response('Unauthorised', { status: 401 });
   }
   const p = new URL(req.url).searchParams.get('part');
-  const part: SyncPart = p === 'core' || p === 'intel' ? p : 'all';
+  const part: SyncPart = p === 'core' || p === 'intel' || p === 'stories' ? p : 'all';
   const r = await runSync(part);
   return Response.json(r, { status: r.status === 'error' ? 500 : 200 });
 }

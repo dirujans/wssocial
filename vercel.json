@@ -3,6 +3,10 @@
     { "path": "/api/sync?part=core", "schedule": "45 2 * * *" },
     { "path": "/api/sync?part=intel", "schedule": "5 3 * * *" },
     { "path": "/api/sync?part=core", "schedule": "30 5 * * *" },
-    { "path": "/api/sync?part=intel", "schedule": "50 5 * * *" }
+    { "path": "/api/sync?part=intel", "schedule": "50 5 * * *" },
+    { "path": "/api/sync?part=stories", "schedule": "0 10 * * *" },
+    { "path": "/api/sync?part=stories", "schedule": "0 14 * * *" },
+    { "path": "/api/sync?part=stories", "schedule": "0 18 * * *" },
+    { "path": "/api/sync?part=stories", "schedule": "0 22 * * *" }
   ]
 }

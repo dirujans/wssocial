@@ -341,3 +341,20 @@ export async function fetchAds(range: string = 'last_7dT'): Promise<{ meta: AdDa
   ]);
   return { meta: mapMetaAds(meta), tiktok: mapTikTokAds(tiktok) };
 }
+
+/* ---------- Our Instagram Stories (stats live for 24 hours only) ---------- */
+export interface IgStory { id: string; account_id: string; platform: 'Instagram' | 'Instagram IE'; posted_at: string | null; permalink: string | null; thumb_url: string | null; views: number | null; reach: number | null; replies: number | null; shares: number | null; interactions: number | null; exits: number | null; taps_forward: number | null; taps_back: number | null; swipe_forward: number | null }
+export function mapStories(rows: Row[]): IgStory[] {
+  return rows.filter((r) => str(r.story_id)).map((r) => ({
+    id: str(r.story_id), account_id: str(r.account_id), platform: str(r.account_id) === ACCOUNTS.instagramIE ? 'Instagram IE' : 'Instagram',
+    posted_at: str(r.story_timestamp) ? new Date(str(r.story_timestamp).replace(/\+0000$/, 'Z')).toISOString() : null,
+    permalink: str(r.story_permalink) || null, thumb_url: str(r.story_thumbnail_url) || null,
+    views: num(r.story_views), reach: num(r.story_reach), replies: num(r.story_replies), shares: num(r.story_shares), interactions: num(r.story_interactions),
+    exits: num(r.story_exits), taps_forward: num(r.story_taps_forward), taps_back: num(r.story_taps_back), swipe_forward: num(r.story_swipe_forward),
+  }));
+}
+export async function fetchStories(): Promise<IgStory[]> {
+  const rows = await windsor('instagram', ['account_id', 'date', 'story_id', 'story_timestamp', 'story_permalink', 'story_thumbnail_url', 'story_views', 'story_reach', 'story_replies', 'story_shares', 'story_interactions', 'story_exits', 'story_taps_forward', 'story_taps_back', 'story_swipe_forward'],
+    { datePreset: 'last_3dT', accounts: [ACCOUNTS.instagramUK, ACCOUNTS.instagramIE] });
+  return mapStories(rows);
+}
