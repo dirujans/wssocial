@@ -8,12 +8,13 @@ import { mapTikTok, mapTrends, scoreTikTok, TIKTOK_HANDLES, type TikTokVideo } f
 
 const BASE = 'https://api.apify.com/v2';
 // Free plan budget is $5 a month. Costs seen: TikTok profiles ~$0.32 a run, trends ~$0.10 a run.
-// Flavour Club hashtag hunts are the priority during the campaign, so competitor TikTok and trends run weekly.
+// Flavour Club hashtag hunts are the priority during the campaign. Trends run every ~3 days (cheap, and a trend list
+// a week old is useless); competitor TikTok stays weekly. Month at this cadence: ~$1.5 FC + ~$1.0 trends + ~$1.4 TikTok.
 const JOBS = {
   fc_tiktok: { actor: 'clockworks~tiktok-scraper', everyHours: 46, input: () => ({ hashtags: [FC_HASHTAG], resultsPerPage: 25, shouldDownloadVideos: false, shouldDownloadCovers: false }) },
   fc_instagram: { actor: 'apify~instagram-hashtag-scraper', everyHours: 46, input: () => ({ hashtags: [FC_HASHTAG], resultsLimit: 30 }) },
   tiktok: { actor: 'clockworks~tiktok-scraper', everyHours: 160, input: () => ({ profiles: TIKTOK_HANDLES, resultsPerPage: 12, profileScrapeSections: ['videos'], profileSorting: 'latest', excludePinnedPosts: true, shouldDownloadVideos: false, shouldDownloadCovers: false }) },
-  trends: { actor: 'data_xplorer~tiktok-trends', everyHours: 160, input: () => ({ trendType: 'hashtags', countryCode: 'GB', hashtagPeriod: '7', maxItems: 40 }) },
+  trends: { actor: 'data_xplorer~tiktok-trends', everyHours: 70, input: () => ({ trendType: 'hashtags', countryCode: 'GB', hashtagPeriod: '7', maxItems: 40 }) },
 } as const;
 type Kind = keyof typeof JOBS;
 

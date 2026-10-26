@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { flavourScores, flavoursIn, instagramDemo, latestDay, sentimentOf } from '../lib/audience';
+import { flavourScores, flavoursIn, instagramDemo, latestDay, replyBank, sentimentOf } from '../lib/audience';
 import type { AccountDay, AudienceDemo } from '../lib/types';
 
 test('flavoursIn separates Sriracha Hot Honey from Hot Honey', () => {
@@ -42,4 +42,18 @@ test('latestDay uses each platform’s last real day and a 7-day average', () =>
   const d = latestDay(rows);
   assert.equal(d.instagram.date, '2026-10-14'); assert.equal(d.instagram.views, 310); assert.equal(d.instagram.avg7.views, 100);
   assert.equal(d.tiktok.date, '2026-10-13'); assert.equal(d.total.views, 360);
+});
+
+const NOW = Date.parse('2026-10-26T12:00:00Z');
+const rc = (id: string, likes: number, post_date: string) =>
+  ({ comment_id: id, text: 'when is it coming to Leeds?', likes, theme: 'Other' as const, platform: 'TikTok' as const, post_link: null, author: null, post_date });
+
+test('replyBank: a fresh comment beats an older, louder one', () => {
+  const bank = replyBank([rc('old', 400, '2026-10-12'), rc('new', 120, '2026-10-24')], 18, { now: NOW });
+  assert.equal(bank[0].c.comment_id, 'new');
+});
+
+test('replyBank: used or skipped comments drop out before the cut', () => {
+  const bank = replyBank([rc('a', 90, '2026-10-24'), rc('b', 80, '2026-10-24')], 1, { now: NOW, exclude: new Set(['a']) });
+  assert.deepEqual(bank.map((x) => x.c.comment_id), ['b']);
 });

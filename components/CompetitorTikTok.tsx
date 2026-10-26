@@ -14,6 +14,7 @@ export default function CompetitorTikTok({ videos, days, today, win }: { videos:
   const [open, setOpen] = useState<TikTokVideo | null>(null);
   const [limit, setLimit] = useState(12);
   const from = shift(today, -win);
+  const lastPull = days.reduce<string | null>((m, d) => (!m || d.date > m ? d.date : m), null);
 
   const board = useMemo(() => {
     const handles = [...new Set([...days.map((d) => d.handle), ...videos.map((v) => v.handle)])];
@@ -52,7 +53,7 @@ export default function CompetitorTikTok({ videos, days, today, win }: { videos:
           <div><span className="eyebrow">TikTok · last {win} days · plays, shares and saves are public here</span><h2>TikTok: what travels</h2></div>
           <div className="seg" role="group" aria-label="Rank videos by">{SORTS.map(([k, l]) => <button key={k} type="button" aria-pressed={sort === k} onClick={() => { setSort(k); setLimit(12); }}>{l}</button>)}</div>
         </div>
-        <p className="note">TikTok shows every video&apos;s shares and saves publicly, so this is the one place we can compare shares and saves like for like. Share and save rate are per play. Videos refresh twice a week; latest 12 per account.</p>
+        <p className="note">TikTok shows every video&apos;s shares and saves publicly, so this is the one place we can compare shares and saves like for like. Share and save rate are per play. Videos refresh weekly (Apify free credit); latest 12 per account.{lastPull ? ` Last pulled ${day(lastPull)}.` : ''}</p>
         <div className="card tablewrap" style={{ marginTop: 10 }}>
           <table>
             <thead><tr><th>Account</th><th className="r">Followers</th><th className="r">Videos</th><th className="r">Median plays</th><th className="r">Shares</th><th className="r">Saves</th><th>Share + save rate</th><th className="r">Breakouts</th></tr></thead>

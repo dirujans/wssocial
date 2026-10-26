@@ -156,16 +156,24 @@ export type ReplyWhy = 'Question' | 'Funny' | 'Request' | 'Loud' | 'Wants in';
  * Comments worth a reply-with-video: questions, the funny or absurd, city requests and the loudest.
  * Pushback is left out on purpose: complaints get a direct reply, not a video.
  */
-export function replyBank(comments: Pick<Comment, 'comment_id' | 'text' | 'likes' | 'theme' | 'platform' | 'post_link' | 'author'>[], limit = 18) {
+/**
+ * Reply-with-a-video candidates. Likes alone would pin the same old viral comments at the top for three weeks,
+ * so the score halves every 4 days of post age: the bank turns over as new posts land. Comments already
+ * marked used or skipped are taken out before the cut, so they never hold a slot.
+ */
+export function replyBank(comments: Pick<Comment, 'comment_id' | 'text' | 'likes' | 'theme' | 'platform' | 'post_link' | 'author' | 'post_date'>[], limit = 18, opts: { exclude?: Set<string>; now?: number } = {}) {
+  const now = opts.now ?? Date.now();
   const FUNNY = /(😭|💀|😂|🤣|🫠|lmao|lmfao|i'm crying|im crying|dead|marry|propos|wedding|my mum|my mom|my nan|tattoo|divorce|ex\b|girlfriend|boyfriend|wife|husband|therapy|rent|salary|pay me|sponsor me)/i;
-  const scored = comments.filter((c) => c.theme !== 'Pushback' && c.text && c.text.replace(/@[\w.]+/g, '').trim().length > 3).map((c) => {
+  const scored = comments.filter((c) => !opts.exclude?.has(c.comment_id) && c.theme !== 'Pushback' && c.text && c.text.replace(/@[\w.]+/g, '').trim().length > 3).map((c) => {
     const why: ReplyWhy[] = [];
     if (/\?/.test(c.text)) why.push('Question');
     if (FUNNY.test(c.text)) why.push('Funny');
     if (c.theme === "Where's ours?") why.push('Request');
     if (c.theme === 'Wants in') why.push('Wants in');
     if ((c.likes ?? 0) >= 50) why.push('Loud');
-    const score = (c.likes ?? 0) * (1 + why.length) + (why.includes('Funny') ? 40 : 0) + (why.includes('Question') ? 20 : 0);
+    const base = (c.likes ?? 0) * (1 + why.length) + (why.includes('Funny') ? 40 : 0) + (why.includes('Question') ? 20 : 0);
+    const ageDays = c.post_date ? Math.max(0, (now - Date.parse(c.post_date + 'T12:00:00Z')) / 864e5) : 21;
+    const score = base * Math.pow(0.5, ageDays / 4);
     return { c, why, score };
   }).filter((x) => x.why.length > 0);
   return scored.sort((a, b) => b.score - a.score).slice(0, limit);

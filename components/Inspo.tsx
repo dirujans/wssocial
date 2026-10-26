@@ -46,7 +46,10 @@ export default function Inspo({ data }: { data: InspoData }) {
     if (m === 'ours') return true;
     return t.fit === filter;
   });
-  const bank = useMemo(() => replyBank(data.comments), [data.comments]);
+  // Used and skipped comments drop out of the bank (they stay recorded in marks); the bank refills from newer posts.
+  const [showUsed, setShowUsed] = useState(false);
+  const done = useMemo(() => new Set(Object.entries(marks).filter(([k, v]) => k.startsWith('comment:') && (v === 'used' || v === 'skip')).map(([k]) => k.slice(8))), [marks]);
+  const bank = useMemo(() => replyBank(data.comments, 18, { exclude: showUsed ? undefined : done }), [data.comments, done, showUsed]);
   const aboutUs = data.mentions.filter((m) => ['creator', 'praise', 'community', 'review'].includes((m.kind ?? '').toLowerCase()) && !m.done).slice(0, 9);
   const rivals = useMemo(() => [...data.tiktok].filter((v) => v.handle !== 'wingstopuk' && (v.plays ?? 0) > 5000)
     .sort((a, b) => ((b.shares ?? 0) + (b.saves ?? 0)) / (b.plays || 1) - ((a.shares ?? 0) + (a.saves ?? 0)) / (a.plays || 1)).slice(0, 6), [data.tiktok]);
@@ -127,11 +130,11 @@ export default function Inspo({ data }: { data: InspoData }) {
       <section className="band" id="replies">
         <div className="inner">
           <div className="band-head"><div><span className="eyebrow">Under our posts · last 3 weeks · questions, the funny, requests, the loud</span><h2>Reply with a video</h2></div></div>
-          <p className="note">Candidates for a reply video or a pinned reply. Complaints are left out on purpose: those get a direct reply, not a skit. Mark one <b>Used</b> once it&apos;s made so nobody doubles up.</p>
+          <p className="note">Candidates for a reply video or a pinned reply. Complaints are left out on purpose: those get a direct reply, not a skit. Newer posts weigh more, so the list turns over. Mark one <b>Used</b> once it&apos;s made, or <b>Skip</b> it: either way it leaves the list and the next one moves up. {done.size > 0 && <button type="button" className="chip" onClick={() => setShowUsed((v) => !v)}>{showUsed ? 'Hide used and skipped' : `Show ${done.size} used or skipped`}</button>}</p>
           {bank.length === 0 ? <p className="empty">No strong candidates in the last three weeks.</p> : (
             <div className="cgrid" style={{ marginTop: 10 }}>
               {bank.map(({ c, why }) => {
-                const key = `comment:${c.comment_id}`; const used = marks[key] === 'used';
+                const key = `comment:${c.comment_id}`; const used = marks[key] === 'used'; const skipped = marks[key] === 'skip';
                 return (
                   <div key={c.comment_id} className="cmt" style={{ opacity: used ? 0.45 : 1 }}>
                     <div className="text">{c.text}</div>
@@ -142,6 +145,7 @@ export default function Inspo({ data }: { data: InspoData }) {
                       {c.author && <span>@{c.author}</span>}
                       {safeHref(c.post_link) && <a href={safeHref(c.post_link)} target="_blank" rel="noopener noreferrer">Post</a>}
                       <button type="button" className={`chip ${used ? 'primary' : ''}`} onClick={() => setMark(key, used ? 'clear' : 'used')}>{used ? '✓ Used' : 'Mark used'}</button>
+                      <button type="button" className="chip" onClick={() => setMark(key, skipped ? 'clear' : 'skip')}>{skipped ? 'Bring back' : 'Skip'}</button>
                     </div>
                   </div>
                 );
@@ -198,7 +202,7 @@ export default function Inspo({ data }: { data: InspoData }) {
 
       <SectionNav sections={[{ id: 'trends', label: 'Trending now' }, { id: 'replies', label: 'Reply with a video' }, { id: 'about-us', label: 'About us' }, { id: 'rivals', label: 'What people pass on' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        <div className="inner"><p className="cap">Internal. UK trending hashtags from TikTok Creative Center and rival TikToks via Apify (free tier), refreshed daily and twice a week. Comments from Instagram and TikTok via Windsor.ai. Fit and reply tags are keyword rules: a pointer to look, never a brief.</p><LphFooter /></div>
+        <div className="inner"><p className="cap">Internal. UK trending hashtags from TikTok Creative Center and rival TikToks via Apify (free tier): trends refresh every three days, rival TikToks weekly, to stay inside the monthly credit. Comments from Instagram and TikTok via Windsor.ai. Fit and reply tags are keyword rules: a pointer to look, never a brief.</p><LphFooter /></div>
       </footer>
       {open && <TikTokModal v={open} onClose={() => setOpen(null)} />}
     </main>
