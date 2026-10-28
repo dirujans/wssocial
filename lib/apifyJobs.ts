@@ -3,7 +3,7 @@ import 'server-only';
 // each sync first collects any finished runs and stores their results, then starts runs that are due.
 // Runs finish in the background between the 02:45 and 05:30 syncs.
 import { supabaseAdmin } from './supabase';
-import { FC_HASHTAG, mapFcEntries } from './flavourClub';
+import { FC_HASHTAG, mapFcEntries, TEAM_ADDED } from './flavourClub';
 import { mapTikTok, mapTrends, scoreTikTok, TIKTOK_HANDLES, type TikTokVideo } from './tiktok';
 
 const BASE = 'https://api.apify.com/v2';
@@ -25,7 +25,11 @@ async function ingest(kind: Kind, items: Record<string, unknown>[]) {
   const db = supabaseAdmin(); const today = londonToday();
   if (kind === 'fc_tiktok' || kind === 'fc_instagram') {
     // Status and notes (the team's founding-member shortlist) are not in these rows, so upserts never overwrite them.
-    const rows = mapFcEntries(items, kind === 'fc_tiktok' ? 'TikTok' : 'Instagram').map((r) => ({ ...r, updated_at: new Date().toISOString() }));
+    const mapped = mapFcEntries(items, kind === 'fc_tiktok' ? 'TikTok' : 'Instagram');
+    // Entries the team added by link keep their 'team' marker, so they stay on the page whatever the caption says.
+    const { data: team } = mapped.length ? await db.from('fc_entries').select('id').eq('hashtag', TEAM_ADDED).in('id', mapped.map((r) => r.id)) : { data: [] };
+    const teamIds = new Set((team ?? []).map((t) => t.id as string));
+    const rows = mapped.map((r) => ({ ...r, hashtag: teamIds.has(r.id) ? TEAM_ADDED : r.hashtag, updated_at: new Date().toISOString() }));
     if (rows.length) { const { error } = await db.from('fc_entries').upsert(rows, { onConflict: 'id' }); if (error) throw new Error(error.message); }
     return rows.length;
   }

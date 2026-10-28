@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyFc, isFcPost, linkChannel, linkStore, linkSummary, mapFcEntries, opportunities } from '../lib/flavourClub';
+import { classifyFc, isFcPost, linkChannel, linkStore, linkSummary, mapFcEntries, opportunities, parseEntryLinks } from '../lib/flavourClub';
 import type { Comment } from '../lib/types';
 import { pickPlace } from '../lib/stores';
 
@@ -116,4 +116,18 @@ test('fcPulse: Instagram ads add on top, TikTok Spark comes out of the post', as
   assert.deepEqual(p.views.combined, { Instagram: 700, TikTok: 1000 });
   assert.deepEqual(p.shares.organic, { Instagram: 20, TikTok: 48 });
   assert.deepEqual(p.saves.paid, { Instagram: 3, TikTok: 0 });
+});
+
+test('parseEntryLinks reads Instagram and TikTok links, once each, and ignores the rest', () => {
+  const got = parseEntryLinks('https://www.instagram.com/reel/DE1_abcXY/?igsh=x, https://instagram.com/p/DE1_abcXY/\nhttps://www.instagram.com/someone/p/Zz9-Qq11/ https://www.tiktok.com/@chef.k/video/7700000000000000001?lang=en https://bit.ly/x hello');
+  assert.deepEqual(got.map((l) => l.id), ['ig_DE1_abcXY', 'ig_Zz9-Qq11', 'tt_7700000000000000001']);
+  assert.equal(got[0].url, 'https://www.instagram.com/p/DE1_abcXY/');
+  assert.equal(got[2].author, 'chef.k');
+  assert.deepEqual(parseEntryLinks('https://www.instagram.com/wingstopuk/'), []);
+});
+
+test('mapFcEntries trusted keeps team-added posts whose caption skips the hashtag, still drops errors', () => {
+  const items = [{ id: '1', shortCode: 'A1', ownerUsername: 'fan', caption: 'pick me for the party', url: 'https://www.instagram.com/p/A1/' }, { error: 'not found', url: 'x' }];
+  assert.equal(mapFcEntries(items, 'Instagram').length, 0);
+  assert.equal(mapFcEntries(items, 'Instagram', { trusted: true }).length, 1);
 });

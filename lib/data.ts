@@ -220,7 +220,7 @@ export async function loadFlavourClub(): Promise<FlavourClubData> {
     posts, comments: (c.data ?? []) as Comment[],
     mentions: fcMentions((me.data ?? []) as Mention[]),
     // Older loose hashtag matches stay in the table; only real entries (or ones the team already marked) show.
-    entries: ((en.data ?? []) as FcEntry[]).filter((e) => e.status || (isFcText(e.caption) && !/^(wingstopuk|wingstopie|wingstop_ie|wingstopireland|wingstop)$/i.test(e.author ?? ''))),
+    entries: ((en.data ?? []) as FcEntry[]).filter((e) => e.status || e.hashtag === 'team' || (isFcText(e.caption) && !/^(wingstopuk|wingstopie|wingstop_ie|wingstopireland|wingstop)$/i.test(e.author ?? ''))),
     marks: (mk.data ?? []) as FlavourClubData['marks'],
     loyalty: ((co.data ?? []) as CompetitorItem[]).filter((i) => /loyal|reward|app\b|points|stamp|club/i.test(`${i.title} ${i.summary ?? ''}`)),
     links: (ln.data ?? []) as FcLinkDay[],

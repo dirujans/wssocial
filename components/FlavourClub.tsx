@@ -79,6 +79,23 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
     setMarks((s) => { const n = { ...s }; if (verdict === 'clear') delete n[key]; else n[key] = verdict; return n; });
     try { await post('/api/flavour/mark', 'POST', { key, verdict }); } catch (e) { setErr((e as Error).message); setMarks((s) => ({ ...s, [key]: before })); }
   };
+  const [links, setLinks] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addMsg, setAddMsg] = useState<string | null>(null);
+  const addLinks = async () => {
+    if (!links.trim() || adding) return;
+    setAdding(true); setAddMsg(null);
+    try {
+      const r = await fetch('/api/flavour/entries', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ links }) });
+      const j = await r.json().catch(() => ({ ok: false })) as { ok: boolean; error?: string; added?: number; unread?: string[]; entries?: FcEntry[] };
+      if (!j.ok) throw new Error(j.error ?? 'Could not add');
+      const got = j.entries ?? [];
+      setEntries((xs) => { const ids = new Set(got.map((g) => g.id)); const keepUrls = new Set(got.map((g) => g.url)); return [...got, ...xs.filter((x) => !ids.has(x.id) && !(x.platform === 'Instagram' && keepUrls.has(x.url) && !x.status))]; });
+      setLinks('');
+      setAddMsg(`${j.added} added.${j.unread?.length ? ` ${j.unread.length} Instagram link${j.unread.length === 1 ? '' : 's'} couldn't be read (private or removed?), saved as a link only.` : ''}`);
+    } catch (e) { setAddMsg((e as Error).message); }
+    setAdding(false);
+  };
   const setStatus = async (e: FcEntry, status: string | null) => {
     const before = e.status;
     setEntries((xs) => xs.map((x) => (x.id === e.id ? { ...x, status } : x)));
@@ -210,8 +227,13 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
               {([['all', 'All'], ['shortlist', 'Shortlist'], ['winner', 'Winner']] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={entryFilter === k} onClick={() => setEntryFilter(k)}>{l}<span className="count">{k === 'all' ? entries.filter((e) => e.status !== 'skip').length : entries.filter((e) => e.status === k).length}</span></button>)}
             </div>
           </div>
-          <p className="note">Public posts using the hashtag, refreshed every two days (TikTok and Instagram via Apify). Private accounts and Stories can&apos;t be seen by any tool, so tell entrants to post publicly. Shortlist and winner are shared with everyone who can open this page.</p>
-          {shownEntries.length === 0 ? <p className="empty">{entries.length ? 'Nothing in this filter.' : 'No public #wingstopflavourclub posts found yet. The first hashtag search runs at the next sync.'}</p> : (
+          <p className="note">TikTok entries are found by hashtag every two days. Instagram hides hashtag results from every outside tool (it only shows the single top post), so Instagram entries come in by link: paste the posts you see in tag notifications or in Sprout and the dashboard reads the author, caption and likes. Private accounts and Stories can&apos;t be read by any tool. Shortlist and winner are shared with everyone who can open this page.</p>
+          <div className="card formrow" style={{ marginBottom: 14 }}>
+            <input placeholder="Paste Instagram or TikTok links (one or many)" value={links} onChange={(e) => setLinks(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addLinks(); }} aria-label="Entry links" style={{ flex: 3 }} />
+            <button type="button" className="chip primary" onClick={addLinks} disabled={!links.trim() || adding}>{adding ? 'Reading…' : 'Add entries'}</button>
+            {addMsg && <span className="muted" style={{ fontSize: '.8rem' }}>{addMsg}</span>}
+          </div>
+          {shownEntries.length === 0 ? <p className="empty">{entries.length ? 'Nothing in this filter.' : 'No entries yet. TikTok hashtag posts arrive with the sync; paste Instagram entry links above.'}</p> : (
             <div className="card tablewrap">
               <table>
                 <thead><tr><th>Entry</th><th>When</th><th className="r">Plays</th><th className="r">Likes</th><th className="r">Comments</th><th /></tr></thead>
@@ -293,7 +315,7 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
 
       <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'listening', label: 'Listening' }, { id: 'comments-wall', label: 'Comment wall' }, { id: 'stories', label: 'Our Stories' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }, { id: 'blind-spots', label: 'Blind spots' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        <div className="inner"><p className="cap">Flavour Club only. Our posts and comments from Instagram and TikTok via Windsor.ai; hashtag entries via Apify; QR scans via Bitly; press and chatter from the morning report. Themes and topics are keyword rules.</p><LphFooter /></div>
+        <div className="inner"><p className="cap">Flavour Club only. Our posts and comments from Instagram and TikTok via Windsor.ai; TikTok hashtag entries via Apify, Instagram entries added by link; QR scans via Bitly; press and chatter from the morning report. Themes and topics are keyword rules.</p><LphFooter /></div>
       </footer>
     </main>
   );

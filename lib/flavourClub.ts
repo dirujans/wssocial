@@ -87,8 +87,24 @@ export function isFcEntry(i: Row): boolean {
   return isFcText(`${str(i.text || i.caption)} ${tags}`);
 }
 
-export function mapFcEntries(items: Row[], platform: 'TikTok' | 'Instagram'): Omit<FcEntry, 'status' | 'note'>[] {
-  return items.filter((i) => !i.error && (i.id || i.shortCode) && isFcEntry(i)).map((i) => {
+/** Entries the team pastes in by link. Logged-out Instagram only shows a hashtag's single top post, so no tool can list
+ * Instagram entries; links seen in tag notifications are the way in. Returns each link once, cleaned. */
+export interface EntryLink { platform: 'Instagram' | 'TikTok'; url: string; id: string; author: string | null }
+export function parseEntryLinks(text: string): EntryLink[] {
+  const out = new Map<string, EntryLink>();
+  for (const raw of String(text ?? '').split(/[\s,]+/)) {
+    const ig = raw.match(/instagram\.com\/(?:[\w.]+\/)?(?:p|reels?|tv)\/([\w-]{5,})/i);
+    if (ig) { const code = ig[1]; out.set(`ig_${code}`, { platform: 'Instagram', url: `https://www.instagram.com/p/${code}/`, id: `ig_${code}`, author: null }); continue; }
+    const tt = raw.match(/tiktok\.com\/@([\w.]+)\/(?:video|photo)\/(\d{8,})/i);
+    if (tt) out.set(`tt_${tt[2]}`, { platform: 'TikTok', url: `https://www.tiktok.com/@${tt[1]}/video/${tt[2]}`, id: `tt_${tt[2]}`, author: tt[1] });
+  }
+  return [...out.values()];
+}
+/** Marks an entry the team added by hand, so the page shows it even if the caption doesn't name the club. */
+export const TEAM_ADDED = 'team';
+
+export function mapFcEntries(items: Row[], platform: 'TikTok' | 'Instagram', { trusted = false } = {}): Omit<FcEntry, 'status' | 'note'>[] {
+  return items.filter((i) => !i.error && (i.id || i.shortCode) && (trusted || isFcEntry(i))).map((i) => {
     if (platform === 'TikTok') {
       const a = (i.authorMeta ?? {}) as Row, vm = (i.videoMeta ?? {}) as Row;
       return { id: `tt_${str(i.id)}`, platform, author: str(a.name) || null, author_name: str(a.nickName) || null, url: str(i.webVideoUrl) || null, caption: str(i.text) || null,
