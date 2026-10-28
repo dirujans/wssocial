@@ -43,6 +43,16 @@ export async function GET(req: Request) {
   if (ads && (/^last_\d+dT?$/.test(ads) || /^\d{4}-\d{2}-\d{2}\.\.\d{4}-\d{2}-\d{2}$/.test(ads))) { const t0 = Date.now(); return Response.json({ ms: Date.now() - t0, ...(await syncAds(ads)), took: Date.now() - t0 }); }
   if (url.searchParams.get('geocode') === 'stores') return Response.json(await geocodeStores(Number(url.searchParams.get('max') ?? 40)));
   if (url.searchParams.get('run') === 'jobs') return Response.json(await runApifyStep());
+  // Read a finished run's raw dataset (free: starts nothing). Shows what the actor returned before our filters.
+  const dsRun = url.searchParams.get('dataset');
+  if (dsRun) {
+    const h = { Authorization: `Bearer ${process.env.APIFY_TOKEN}` };
+    const run = (await (await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(dsRun)}`, { headers: h, cache: 'no-store' })).json()).data;
+    if (!run) return Response.json({ error: 'run not found' }, { status: 404 });
+    const items = (await (await fetch(`https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?clean=true&limit=200`, { headers: h, cache: 'no-store' })).json()) as Record<string, unknown>[];
+    const input = await (await fetch(`https://api.apify.com/v2/key-value-stores/${run.defaultKeyValueStoreId}/records/INPUT`, { headers: h, cache: 'no-store' })).json().catch(() => null);
+    return Response.json({ status: run.status, statusMessage: run.statusMessage, usd: run.usageTotalUsd, input, count: Array.isArray(items) ? items.length : items, sample: shape(Array.isArray(items) ? items[0] : items), brief: Array.isArray(items) ? items.slice(0, 60).map(brief) : [] });
+  }
   // Actor probes cost credit, so they only run when named explicitly (?only=tiktok,trends).
   const which = (url.searchParams.get('only') ?? '').split(',').filter((k) => PROBES[k]);
   if (!which.length) return Response.json({ error: 'Nothing to do. Use sync, run, ads, geocode, abort or only.' }, { status: 400 });
