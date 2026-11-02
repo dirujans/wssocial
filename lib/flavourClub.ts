@@ -299,3 +299,38 @@ export function fcPulse(posts: Pick<Media, 'platform' | 'comment_key' | 'views' 
   const tot = (x: PlatSplit) => x.Instagram + x.TikTok;
   return { ...out, paidShareOfViews: tot(out.views.combined) ? tot(out.views.paid) / tot(out.views.combined) : 0 };
 }
+
+// ---- Sign-up clicks read against ads ----
+/** Club ad link clicks per day (no spend: the Flavour Club area never sees money). */
+export interface FcAdDay { day: string; platform: 'Meta' | 'TikTok'; clicks: number }
+export interface AdsOnOff { withAds: { days: number; median: number | null }; withoutAds: { days: number; median: number | null } }
+export interface PaidReadChannel extends AdsOnOff { channel: 'Instagram' | 'TikTok'; days: { day: string; clicks: number; adClicks: number }[]; total: number; ratio: number | null }
+export interface PaidRead { channels: PaidReadChannel[]; instore: AdsOnOff; to: string | null }
+const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
+const onOff = (ds: { n: number; on: boolean }[]): AdsOnOff => {
+  const on = ds.filter((d) => d.on).map((d) => d.n), off = ds.filter((d) => !d.on).map((d) => d.n);
+  return { withAds: { days: on.length, median: median(on) }, withoutAds: { days: off.length, median: median(off) } };
+};
+/**
+ * Social sign-up link clicks (Bitly) on days with club ads against days without, per platform, with in-store scans alongside.
+ * Bitly and the ad platforms count clicks differently (Bitly runs well above Meta), so subtracting one from the other invents organic
+ * clicks. Days without ads are the honest read of what the links earn alone. The newest Bitly day is a part day at refresh, so it's dropped.
+ */
+export function paidRead(rows: FcLinkDay[], ads: FcAdDay[]): PaidRead {
+  const live = rows.filter((r) => r.day >= FC_LAUNCH && !/wingstop-testing/.test(r.destination ?? ''));
+  const newest = live.reduce<string | null>((m, r) => (!m || r.day > m ? r.day : m), null);
+  const allDays: string[] = [];
+  if (newest) for (let t = Date.parse(FC_LAUNCH + 'T00:00:00Z'); t < Date.parse(newest + 'T00:00:00Z'); t += 864e5) allDays.push(new Date(t).toISOString().slice(0, 10));
+  const sum = (c: 'Instagram' | 'TikTok', d: string) => live.filter((r) => r.day === d && linkChannel(r.bitlink, r.destination) === c).reduce((s, r) => s + r.clicks, 0);
+  const adsOn = (platform: 'Meta' | 'TikTok', d: string) => ads.filter((a) => a.day === d && a.platform === platform).reduce((s, a) => s + a.clicks, 0);
+  const channels = (['Instagram', 'TikTok'] as const).map((channel): PaidReadChannel => {
+    const days = allDays.map((day) => ({ day, clicks: sum(channel, day), adClicks: adsOn(channel === 'Instagram' ? 'Meta' : 'TikTok', day) }));
+    const both = days.filter((d) => d.clicks >= 100 && d.adClicks >= 100).map((d) => d.clicks / d.adClicks);
+    return { channel, days, total: days.reduce((s, d) => s + d.clicks, 0), ratio: median(both), ...onOff(days.map((d) => ({ n: d.clicks, on: d.adClicks > 0 }))) };
+  });
+  const instore = onOff(allDays.map((d) => ({
+    n: live.filter((r) => r.day === d && isInstore(linkChannel(r.bitlink, r.destination))).reduce((s, r) => s + r.total, 0),
+    on: adsOn('Meta', d) + adsOn('TikTok', d) > 0,
+  })));
+  return { channels, instore, to: allDays[allDays.length - 1] ?? null };
+}

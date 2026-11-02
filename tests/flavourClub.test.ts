@@ -118,6 +118,24 @@ test('fcPulse: Instagram ads add on top, TikTok Spark comes out of the post', as
   assert.deepEqual(p.saves.paid, { Instagram: 3, TikTok: 0 });
 });
 
+test('paidRead: splits link clicks by days with and without ads, drops the part day, never subtracts', async () => {
+  const { paidRead } = await import('../lib/flavourClub');
+  const ig = (day: string, clicks: number) => ({ day, bitlink: 'bit.ly/flavourc-ig', destination: 'https://x.co/?utm_source=instagram', clicks, scans: 0, total: clicks });
+  const qr = (day: string, scans: number) => ({ day, bitlink: 'bit.ly/q', destination: 'https://x.co/?utm_source=table_tent', clicks: 0, scans, total: scans });
+  const rows = [ig('2026-10-19', 1000), ig('2026-10-20', 1500), ig('2026-10-21', 30), ig('2026-10-22', 5), qr('2026-10-19', 700), qr('2026-10-21', 600), qr('2026-10-22', 1), ig('2026-10-01', 9999)];
+  const ads = [{ day: '2026-10-19', platform: 'Meta' as const, clicks: 500 }, { day: '2026-10-20', platform: 'Meta' as const, clicks: 500 }];
+  const r = paidRead(rows, ads);
+  assert.equal(r.to, '2026-10-21');
+  const c = r.channels.find((x) => x.channel === 'Instagram')!;
+  assert.deepEqual(c.withAds, { days: 2, median: 1250 });
+  assert.deepEqual(c.withoutAds, { days: 1, median: 30 });
+  assert.equal(c.total, 2530);
+  assert.equal(c.ratio, 2.5);
+  assert.deepEqual(r.instore.withoutAds, { days: 1, median: 600 });
+  assert.deepEqual(r.channels.find((x) => x.channel === 'TikTok')!.withAds, { days: 0, median: null });
+  assert.deepEqual(paidRead([], []).channels[0].days, []);
+});
+
 test('parseEntryLinks reads Instagram and TikTok links, once each, and ignores the rest', () => {
   const got = parseEntryLinks('https://www.instagram.com/reel/DE1_abcXY/?igsh=x, https://instagram.com/p/DE1_abcXY/\nhttps://www.instagram.com/someone/p/Zz9-Qq11/ https://www.tiktok.com/@chef.k/video/7700000000000000001?lang=en https://bit.ly/x hello');
   assert.deepEqual(got.map((l) => l.id), ['ig_DE1_abcXY', 'ig_Zz9-Qq11', 'tt_7700000000000000001']);

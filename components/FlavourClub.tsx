@@ -7,6 +7,7 @@ import CountUp from './CountUp';
 import { LphFooter } from './Brand';
 import FcCommentWall, { type Heard } from './FcCommentWall';
 import FcListeningPanel from './FcListening';
+import FcPaidRead from './FcPaidRead';
 import FcScans from './FcScans';
 import FcStories from './FcStories';
 import PostWall from './PostWall';
@@ -155,6 +156,8 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
           </div>
         </div>
       </section>
+
+      <FcPaidRead rows={data.links} ads={data.adDays} />
 
       <FcListeningPanel l={heardSummary} vs={vs} ourReplies={ourReplies} fanQuestions={questions.length} />
 
@@ -313,7 +316,7 @@ export default function FlavourClub({ data, today }: { data: FlavourClubData; to
         </div>
       </section>
 
-      <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'listening', label: 'Listening' }, { id: 'comments-wall', label: 'Comment wall' }, { id: 'stories', label: 'Our Stories' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }, { id: 'blind-spots', label: 'Blind spots' }]} />
+      <SectionNav sections={[{ id: 'pulse', label: 'The pulse' }, { id: 'signup-clicks', label: 'Sign-up clicks' }, { id: 'listening', label: 'Listening' }, { id: 'comments-wall', label: 'Comment wall' }, { id: 'stories', label: 'Our Stories' }, { id: 'scans', label: 'Scans' }, { id: 'club-posts', label: 'Club posts' }, { id: 'questions', label: 'Questions' }, { id: 'opportunities', label: 'Opportunities' }, { id: 'entries', label: 'Entries' }, { id: 'press', label: 'Press and online' }, { id: 'landscape', label: 'Loyalty landscape' }, { id: 'blind-spots', label: 'Blind spots' }]} />
       <footer className="band" style={{ paddingTop: 24, paddingBottom: 40 }}>
         <div className="inner"><p className="cap">Flavour Club only. Our posts and comments from Instagram and TikTok via Windsor.ai; TikTok hashtag entries via Apify, Instagram entries added by link; QR scans via Bitly; press and chatter from the morning report. Themes and topics are keyword rules.</p><LphFooter /></div>
       </footer>
