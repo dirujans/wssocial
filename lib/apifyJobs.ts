@@ -12,11 +12,11 @@ const BASE = 'https://api.apify.com/v2';
 // a week old is useless); competitor TikTok stays weekly. Month at this cadence: ~$1.5 FC + ~$1.0 trends + ~$1.4 TikTok.
 const JOBS = {
   fc_tiktok: { actor: 'clockworks~tiktok-scraper', everyHours: 46, input: () => ({ hashtags: [FC_HASHTAG], resultsPerPage: 25, shouldDownloadVideos: false, shouldDownloadCovers: false }) },
-  fc_instagram: { actor: 'apify~instagram-hashtag-scraper', everyHours: 46, input: () => ({ hashtags: [FC_HASHTAG], resultsLimit: 30 }) },
   tiktok: { actor: 'clockworks~tiktok-scraper', everyHours: 160, input: () => ({ profiles: TIKTOK_HANDLES, resultsPerPage: 12, profileScrapeSections: ['videos'], profileSorting: 'latest', excludePinnedPosts: true, shouldDownloadVideos: false, shouldDownloadCovers: false }) },
   trends: { actor: 'data_xplorer~tiktok-trends', everyHours: 70, input: () => ({ trendType: 'hashtags', countryCode: 'GB', hashtagPeriod: '7', maxItems: 40 }) },
 } as const;
-type Kind = keyof typeof JOBS;
+// fc_instagram stopped 5 Nov (logged-out Instagram shows only a hashtag's top post; entries come in by link). Kept so a run already open still closes.
+type Kind = keyof typeof JOBS | 'fc_instagram';
 
 const auth = () => ({ Authorization: `Bearer ${process.env.APIFY_TOKEN}`, 'Content-Type': 'application/json' });
 const londonToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
@@ -75,7 +75,7 @@ export async function runApifyStep(): Promise<Record<string, unknown>> {
     }
   }
   // 2. Start runs that are due (and not already running).
-  for (const kind of Object.keys(JOBS) as Kind[]) {
+  for (const kind of Object.keys(JOBS) as (keyof typeof JOBS)[]) {
     const job = JOBS[kind];
     // Never start a second run while one is open, and never start one if we can't tell.
     const { data: recent, error: qerr } = await db.from('apify_runs').select('started_at,ingested_at').eq('kind', kind).order('started_at', { ascending: false }).limit(5);

@@ -3,7 +3,7 @@ import { isSignedIn } from '@/lib/auth';
 import { runSync, type SyncPart } from '@/lib/sync';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300; // Hobby limit with Fluid compute. A cold intel run passed the old 60s and was killed before ads and Apify.
 
 export async function POST(req: Request) {
   if (!isSignedIn()) return Response.json({ status: 'error', errors: ['Sign in first'] }, { status: 401 });

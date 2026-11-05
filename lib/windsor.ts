@@ -6,7 +6,7 @@ import { fetchWithRetry } from './http';
 import { mapMetaAds, mapTikTokAds, META_ACCOUNTS, TIKTOK_ACCOUNTS, type AdDay } from './paid';
 import { themeOf } from './themes';
 import { brandOf, scorePosts } from './competitors';
-import { NETWORK_TO_CHANNEL, type AccountDay, type Comment, type AudienceDemo, type CompetitorAccountDay, type CompetitorPost, type Media, type Post, type ProfileDay } from './types';
+import { isUkSproutProfile, NETWORK_TO_CHANNEL, type AccountDay, type Comment, type AudienceDemo, type CompetitorAccountDay, type CompetitorPost, type Media, type Post, type ProfileDay } from './types';
 
 const BASE = 'https://connectors.windsor.ai';
 
@@ -50,11 +50,11 @@ function formatOf(t: unknown): Post['format'] {
 export async function fetchProfileDays(datePreset = 'last_120d'): Promise<ProfileDay[]> {
   const rows = await windsor(
     'sproutsocial',
-    ['date', 'profile_network_type', 'profile_impressions', 'profile_engagements', 'profile_followers', 'profile_posts_sent'],
+    ['date', 'profile_id', 'profile_network_type', 'profile_impressions', 'profile_engagements', 'profile_followers', 'profile_posts_sent'],
     { datePreset, accounts: [ACCOUNTS.sprout] },
   );
   return rows
-    .filter((r) => r.date && NETWORK_TO_CHANNEL[str(r.profile_network_type)])
+    .filter((r) => r.date && NETWORK_TO_CHANNEL[str(r.profile_network_type)] && isUkSproutProfile(r.profile_id))
     .map((r) => ({
       date: str(r.date),
       channel: NETWORK_TO_CHANNEL[str(r.profile_network_type)],
@@ -70,14 +70,14 @@ export async function fetchProfileDays(datePreset = 'last_120d'): Promise<Profil
 export async function fetchPosts(datePreset = 'last_60dT'): Promise<Post[]> {
   const rows = await windsor(
     'sproutsocial',
-    ['post_guid', 'post_created_time', 'post_network', 'post_type', 'post_text', 'post_permalink', 'post_impressions', 'post_reach', 'post_video_views', 'post_likes', 'post_comments', 'post_shares', 'post_saves'],
+    ['post_guid', 'post_customer_profile_id', 'post_created_time', 'post_network', 'post_type', 'post_text', 'post_permalink', 'post_impressions', 'post_reach', 'post_video_views', 'post_likes', 'post_comments', 'post_shares', 'post_saves'],
     { datePreset, accounts: [ACCOUNTS.sprout] },
   );
   const out = new Map<string, Post>();
   for (const r of rows) {
     const guid = str(r.post_guid);
     const channel = NETWORK_TO_CHANNEL[str(r.post_network)];
-    if (!guid || !channel) continue;
+    if (!guid || !channel || !isUkSproutProfile(r.post_customer_profile_id)) continue;
     const imp = num(r.post_impressions);
     const vv = num(r.post_video_views);
     const likes = num(r.post_likes) ?? 0, comments = num(r.post_comments), shares = num(r.post_shares) ?? 0, saves = num(r.post_saves) ?? 0;

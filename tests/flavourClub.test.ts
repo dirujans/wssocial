@@ -149,3 +149,11 @@ test('mapFcEntries trusted keeps team-added posts whose caption skips the hashta
   assert.equal(mapFcEntries(items, 'Instagram').length, 0);
   assert.equal(mapFcEntries(items, 'Instagram', { trusted: true }).length, 1);
 });
+
+test('Sprout: only the UK profiles count, so Ireland never doubles a day', async () => {
+  const { isUkSproutProfile } = await import('../lib/types');
+  assert.equal(isUkSproutProfile(6971109), true);
+  assert.equal(isUkSproutProfile('6971110'), true);
+  assert.equal(isUkSproutProfile(7753520), false);
+  assert.equal(isUkSproutProfile(null), false);
+});

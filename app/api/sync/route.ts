@@ -5,7 +5,7 @@ import { runSync, type SyncPart } from '@/lib/sync';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Hobby-safe
+export const maxDuration = 300; // Hobby limit with Fluid compute. A cold intel run passed the old 60s and was killed before ads and Apify.
 
 export async function GET(req: Request) {
   // Trim both sides: a secret pasted with a trailing newline would otherwise silently fail every cron.

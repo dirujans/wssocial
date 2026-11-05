@@ -1,4 +1,11 @@
 export type Channel = 'TikTok' | 'Instagram' | 'Facebook' | 'LinkedIn' | 'X';
+/**
+ * The UK profiles in Sprout. Wingstop Ireland (7753520) joined the same Sprout account around 2 Nov 2026: its Instagram shares a network
+ * type with the UK's, so two rows a day landed on one date and channel and the profile_daily upsert failed whole. Ireland comes through
+ * the instagram connector as 'Instagram IE' instead. A profile added to Sprout later is ignored until it's listed here.
+ */
+export const SPROUT_UK_PROFILES = new Set(['6971109', '6971110', '6971111', '6971112', '6971113']);
+export const isUkSproutProfile = (id: unknown) => SPROUT_UK_PROFILES.has(String(id ?? ''));
 export const CHANNELS: Channel[] = ['TikTok', 'Instagram', 'Facebook', 'LinkedIn', 'X'];
 
 export const NETWORK_TO_CHANNEL: Record<string, Channel> = {
